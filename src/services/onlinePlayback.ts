@@ -231,6 +231,10 @@ export async function loadOnlineSongLyrics(
     const preferredCachedLyrics = resolveOnlineLyrics(trustsStoredLyrics ? onlineLyricsState : null, cachedLyrics);
     const hasAuthoritativeLyricsSelection = trustsStoredLyrics && (onlineLyricsState?.lyricsSource === 'imported'
         || Boolean(onlineLyricsState?.hasOnlineOverride));
+    // Nor the lyrics the prefetch store kept for it: those may be another source's match from before the source said
+    // `own` (measured 2026-11-25: a video with no subtitles showed another song's words, and the source was never
+    // asked at all). Such an item is asked every time instead.
+    const usablePrefetched = trustsStoredLyrics ? prefetched : null;
     // A platform whose own word timing is kept as it is (`prefersOwnWordByWord`) is not searched
     // for another source when it is also the preferred one: the automatic pick would replace the
     // timing the song actually has. Any other preferred source is still asked (issue #1127).
@@ -251,7 +255,7 @@ export async function loadOnlineSongLyrics(
         return;
     }
 
-    if (prefetched?.lyricRaw?.isPureMusic && !prefetched.lyrics
+    if (usablePrefetched?.lyricRaw?.isPureMusic && !usablePrefetched.lyrics
         && (hasAuthoritativeLyricsSelection || !initialSettingsLyricSettings.autoUseBestLyric)) {
         onPureMusicChange?.(true);
         onLyrics(null);
@@ -259,9 +263,9 @@ export async function loadOnlineSongLyrics(
         return;
     }
 
-    if (prefetched?.lyrics) {
-        const preferredPrefetchedLyrics = resolveOnlineLyrics(onlineLyricsState, prefetched.lyrics);
-        const effectiveLyrics = preferredPrefetchedLyrics ?? prefetched.lyrics;
+    if (usablePrefetched?.lyrics) {
+        const preferredPrefetchedLyrics = resolveOnlineLyrics(onlineLyricsState, usablePrefetched.lyrics);
+        const effectiveLyrics = preferredPrefetchedLyrics ?? usablePrefetched.lyrics;
 
   const settingsLyricSettings = useLyricSettingsStore.getState();
         const shouldAutoMatch = mayMatchOthers && settingsLyricSettings.autoUseBestLyric && !onlineLyricsState?.hasOnlineOverride
@@ -272,23 +276,23 @@ export async function loadOnlineSongLyrics(
             onPureMusicChange?.(
                 onlineLyricsState?.lyricsSource === 'online' && typeof onlineLyricsState.matchedIsPureMusic === 'boolean'
                     ? onlineLyricsState.matchedIsPureMusic
-                    : (prefetched.lyricRaw?.isPureMusic || isPureMusicLyricText(effectiveText) || isPureMusicLyricText(prefetched.lyricRaw?.mainLrc))
+                    : (usablePrefetched.lyricRaw?.isPureMusic || isPureMusicLyricText(effectiveText) || isPureMusicLyricText(usablePrefetched.lyricRaw?.mainLrc))
             );
             onLyrics(effectiveLyrics);
-            saveToCache(lyricCacheKey, prefetched.lyrics);
+            saveToCache(lyricCacheKey, usablePrefetched.lyrics);
             saveLyricCacheSongMetadata(song);
             onDone();
             return;
         }
     }
 
-    const processed = prefetched?.lyrics
+    const processed = usablePrefetched?.lyrics
         ? {
-            mainLrc: prefetched.lyricRaw?.mainLrc ?? null,
-            yrcLrc: prefetched.lyricRaw?.yrcLrc ?? null,
-            transLrc: prefetched.lyricRaw?.transLrc ?? null,
-            isPureMusic: prefetched.lyricRaw?.isPureMusic ?? false,
-            lyrics: prefetched.lyrics,
+            mainLrc: usablePrefetched.lyricRaw?.mainLrc ?? null,
+            yrcLrc: usablePrefetched.lyricRaw?.yrcLrc ?? null,
+            transLrc: usablePrefetched.lyricRaw?.transLrc ?? null,
+            isPureMusic: usablePrefetched.lyricRaw?.isPureMusic ?? false,
+            lyrics: usablePrefetched.lyrics,
             chorusRanges: [],
           }
         : await (async () => {

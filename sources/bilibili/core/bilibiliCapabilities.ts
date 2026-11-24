@@ -345,7 +345,10 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
             }>(await request('playerInfo', { aid: avid, cid }), fail, 'playerInfo');
             // The field is `subtitles` (plural) — measured 2026-11-25; an entry whose `subtitle_url` is empty has no
             // file behind it (bilibili answers those for some videos), so only an entry with a URL can be read.
-            const subtitles = (info?.subtitle?.subtitles ?? []).filter(track => track.subtitle_url);
+            // `ai-*` is bilibili's own speech recognition, not the uploader's CC: it belongs to whatever the video
+            // happens to say (talking, game noise), so it is not lyrics and is never used.
+            const subtitles = (info?.subtitle?.subtitles ?? [])
+                .filter(track => track.subtitle_url && !/^ai-/i.test(track.lan ?? ''));
             const picked = subtitles.find(track => /zh/i.test(track.lan ?? '')) ?? subtitles[0];
             const target = picked?.subtitle_url;
             if (!target) return null;

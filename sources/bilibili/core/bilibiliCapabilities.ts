@@ -209,9 +209,9 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
     /**
      * Fills the covers of the folders just handed out — **inside the read**, because the host turns each collection
      * into its own object the moment it is answered: a cover added afterwards never reaches the wall (measured
-     * 2026-11-25; the requests fired, the cards kept their placeholder). So it is bounded twice: at most
+     * 2026-11-25; the requests fired, the cards kept their placeholder). Bounded twice: at most
      * `FOLDER_COVER_BUDGET` folders, in parallel, and the read waits no more than `FOLDER_COVER_DEADLINE_MS` — the
-     * rest keep their placeholder and are filled by a later read, from the cache this keeps.
+     * rest keep their placeholder until a later read.
      */
     const fillFolderCovers = async (items: FoliumSourceCollection[]): Promise<void> => {
         const missing = items.filter(item => !item.coverUrl).slice(0, FOLDER_COVER_BUDGET);
@@ -223,10 +223,20 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
                 return;
             }
             try {
-                const data = unwrap<{ info?: { cover?: string } }>(
-                    await request('favItems', { media_id: mediaIdOfFolder(item.id), pn: 1, ps: 1 }), fail, 'favItems',
+                const mediaId = mediaIdOfFolder(item.id);
+                const page = unwrap<{ info?: { cover?: string }; medias?: BilibiliMedia[] | null }>(
+                    await request('favItems', { media_id: mediaId, pn: 1, ps: 1 }), fail, 'favItems',
                 );
-                const cover = coverAt(data.info?.cover, 400);
+                const own = coverAt(page.info?.cover, 400);
+                // Where the folder has no cover of its own (the entry bilibili took it from is gone), the first entry
+                // that still plays stands in — that needs a page with more than one entry.
+                const cover = own ?? (await (async () => {
+                    const wider = unwrap<{ medias?: BilibiliMedia[] | null }>(
+                        await request('favItems', { media_id: mediaId, pn: 1, ps: 20 }), fail, 'favItems',
+                    );
+                    const alive = (wider.medias ?? []).find(media => (media.attr ?? 0) === 0 && (media.type ?? 2) === 2 && media.cover);
+                    return coverAt(alive?.cover, 400) ?? null;
+                })());
                 if (!cover) return;
                 item.coverUrl = cover;
                 keepFolderCover(key, cover);

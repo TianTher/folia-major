@@ -77,6 +77,29 @@ describe('folder covers', () => {
         expect(again.items[0]?.coverUrl).toBeTruthy();
     });
 
+    it('falls back to the first entry that still plays when the folder has no cover of its own', async () => {
+        const { env } = createEnv();
+        const request: BilibiliRequest = async (operation) => {
+            if (operation === 'favFolders') return { code: 0, data: { count: 1, list: [folders[0]] } };
+            if (operation === 'favItems') {
+                return {
+                    code: 0,
+                    data: {
+                        info: { cover: '' },
+                        medias: [
+                            { id: 1, type: 2, attr: 9, cover: 'http://i0.hdslb.com/bfs/archive/gone.jpg' },
+                            { id: 2, type: 2, attr: 0, cover: 'http://i0.hdslb.com/bfs/archive/alive.jpg' },
+                        ],
+                    },
+                };
+            }
+            return { code: 0, data: null };
+        };
+        const page = await createCapabilities(env, request).library.getUserPlaylists('42', 10, 0);
+        await settle();
+        expect(page.items[0]?.coverUrl).toBe('https://i0.hdslb.com/bfs/archive/alive.jpg@400w_400h_1c.webp');
+    });
+
     it('keeps the host placeholder when a folder will not answer', async () => {
         const { env } = createEnv();
         const request: BilibiliRequest = async (operation) => {

@@ -1,0 +1,10 @@
+{
+    "name.full": "哔哩哔哩",
+    "name.short": "B站",
+    "login.title": "登录哔哩哔哩",
+    "login.hint": "用哔哩哔哩 App 扫码，手机上确认后这里会自动完成。",
+    "login.expired": "二维码已过期，请重新打开登录窗口。",
+    "error.takenDown": "视频已失效",
+    "error.notPlayable": "这条视频没有可用的音轨",
+    "error.noBackend": "还没配置 B 站后端地址（VITE_BILIBILI_API_BASE），网页版的 B 站音源用不了。"
+}

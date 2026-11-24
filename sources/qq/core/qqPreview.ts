@@ -23,8 +23,7 @@ export const requestQqPreviewSource = async (songmid: string, mediaId: string): 
         const response = await requestQq<any>('music_play', { songmid, ...(mediaId ? { mediaId } : {}), preview: 1 });
         const playUrl = response?.data?.playUrl;
         const playUrlMap = playUrl && typeof playUrl === 'object' ? playUrl : {};
-        // 只认这首自己的条目，别的条目是别首歌。
-        const entry = playUrlMap[songmid] as any;
+        const entry = (playUrlMap[songmid] ?? Object.values(playUrlMap)[0]) as any;
         const url = qqPlaybackUrl(String(entry?.url || ''));
         const preview = entry?.preview === true;
         console.info('[QQProvider] playback:preview', { gotUrl: Boolean(url), preview });

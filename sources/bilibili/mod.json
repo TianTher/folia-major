@@ -1,0 +1,27 @@
+{
+    "folium": 2,
+    "id": "bilibili",
+    "name": "哔哩哔哩",
+    "version": "1.0.0",
+    "author": "Folia",
+    "description": "把 B 站当作音源：登录后账号的收藏夹进歌单页签，播放时只取视频音轨。桌面端内置，网页与 Android 走同一个 core。",
+    "client": "client.mjs",
+    "main": "index.cjs",
+    "locales": "locales",
+    "sources": [
+        {
+            "id": "bilibili",
+            "name": {
+                "zh-CN": "哔哩哔哩",
+                "en": "Bilibili",
+                "in": "Bilibili",
+                "vi": "Bilibili"
+            },
+            "requires": ["songs@1", "playback.audio@1", "lyrics@1", "auth@1", "library@1", "catalog@1"],
+            "enableNotice": {
+                "zh-CN": "收藏夹走的是 B 站网页自用的接口（官方开放平台不含收藏夹），可能随时失效；只做个人收听，不下载、不转存。",
+                "en": "Favorites use bilibili's own web endpoints (its open platform has no favorites API) and may break at any time. For personal listening only: no downloads, no copies."
+            }
+        }
+    ]
+}

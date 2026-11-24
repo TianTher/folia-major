@@ -1,0 +1,10 @@
+{
+    "name.full": "Bilibili",
+    "name.short": "Bilibili",
+    "login.title": "Sign in to Bilibili",
+    "login.hint": "Scan with the Bilibili app; it finishes here once you confirm on the phone.",
+    "login.expired": "The code expired. Open the sign-in window again.",
+    "error.takenDown": "The video is gone",
+    "error.notPlayable": "This video has no usable audio track",
+    "error.noBackend": "No bilibili backend is configured (VITE_BILIBILI_API_BASE); the web build cannot use this source."
+}

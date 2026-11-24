@@ -115,6 +115,15 @@ const BUILTIN_SOURCE_TABLE = Object.freeze({
         userDataDirs: [],
         native: [],
     }),
+    // Added with Folium 2 (2026-11-24): bilibili as a sound source. Its sign-in is one sealed cookie string under
+    // `bilibili_session` (written by the mod's main entry through `api.seal`); nothing from before it was a mod.
+    bilibili: Object.freeze({
+        sources: ['bilibili'],
+        storeKeys: ['bilibili_session'],
+        partitions: [],
+        userDataDirs: [],
+        native: [],
+    }),
 });
 
 /** Every short source id the table knows, in the table's order. */

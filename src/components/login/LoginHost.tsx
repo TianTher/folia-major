@@ -65,8 +65,8 @@ const LoginHost: React.FC<LoginHostProps> = ({ account }) => {
     const { chosen, done } = useSyncExternalStore(host.subscribe, host.getState);
     const providerId = chosen?.providerId ?? null;
 
-    // What the account row's setup entry is called: a source that names its own view (Bilibili's is 收藏夹筛选) is
-    // asked once per provider, instead of the entry showing the host's generic words until it is opened.
+    // What the account row's setup entry is called: a source that names its own view is asked for that name once per
+    // provider, instead of the entry showing the host's generic words until it is opened.
     const [setupEntryTitle, setSetupEntryTitle] = useState<string | null>(null);
     useEffect(() => {
         setSetupEntryTitle(null);

@@ -183,8 +183,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                 busy: syncing,
                 disabled: syncingProviderId !== null,
             };
-            // The entry says what it opens: a source that names its setup view ("收藏夹筛选") gets that name instead of the
-    // host's generic "playback setup" (Bilibili, 2026-11-25). Spotify keeps the generic one.
+            // The entry says what it opens: a source that names its setup view gets that name instead of the host's
+            // generic words; a source that does not name one keeps them.
     const setupAction: MessageAction[] = canOpenSetup
         ? [{ label: setupEntryTitle ?? (shownSetup ? t(shownSetup.view.titleKey) : t('login.setupOpen')), onClick: onOpenSetup }]
         : [];

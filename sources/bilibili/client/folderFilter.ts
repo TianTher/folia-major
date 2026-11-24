@@ -32,6 +32,8 @@ interface FolderRow {
 
 export interface FolderFilter {
     api: BilibiliFolderFilterApi;
+    /** Told to the source's handle once it exists: the host reads the account again when the choice changes. */
+    setNotifier(notify: () => void): void;
     dispose: () => void;
 }
 
@@ -50,6 +52,8 @@ export const createFolderFilter = (folium: FoliumClientApi): FolderFilter => {
         };
     };
 
+    let notifyHost: (() => void) | null = null;
+
     const saveState = (patch: Partial<BilibiliFolderFilter>): void => {
         state = { ...state, ...patch };
         section.settings.set({
@@ -57,6 +61,8 @@ export const createFolderFilter = (folium: FoliumClientApi): FolderFilter => {
             [KEYS.selected]: state.selected.join(','),
             [KEYS.answered]: state.answered,
         });
+        // Only when the list is done: a single checkbox keeps the list itself in step, and 86 re-reads would be rude.
+        if (patch.answered !== undefined) notifyHost?.();
     };
 
     /** The account's folders, read once a session: `created/list-all` takes no paging and is the only list there is. */
@@ -202,6 +208,7 @@ export const createFolderFilter = (folium: FoliumClientApi): FolderFilter => {
 
     return {
         api,
+        setNotifier: (notify) => { notifyHost = notify; },
         dispose: () => { section.unregister(); },
     };
 };

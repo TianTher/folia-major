@@ -30,5 +30,6 @@
     "filter.on":  "选中",
     "filter.off":  "取消",
     "filter.finish":  "完成筛选",
-    "filter.count":  "{n} 个视频"
+    "filter.count":  "{n} 个视频",
+    "filter.folder":  "{{name}}"
 }

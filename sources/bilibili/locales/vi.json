@@ -1,4 +1,4 @@
-﻿{
+{
     "name.full":  "Bilibili",
     "name.short":  "Bilibili",
     "login.title":  "Sign in to Bilibili",
@@ -30,5 +30,6 @@
     "filter.on":  "Check",
     "filter.off":  "Uncheck",
     "filter.finish":  "Done",
-    "filter.count":  "{n} videos"
+    "filter.count":  "{n} videos",
+    "filter.folder":  "{{name}}"
 }

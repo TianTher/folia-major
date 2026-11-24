@@ -68,7 +68,7 @@ describe('the step offered after a sign-in', () => {
 
         const answered = createCapabilities(createEnv({ enabled: true, selected: ['fav:111'], answered: true }), request).auth;
         await expect(answered.checkAfterLogin!('qr')).resolves.toBeNull();
-        await expect(answered.getSetup!()).resolves.toMatchObject({ complete: true });
+        await expect(answered.getSetup!()).resolves.toMatchObject({ complete: false });
     });
 
     it('"show everything" answers the step without filtering', async () => {
@@ -84,5 +84,60 @@ describe('the step offered after a sign-in', () => {
         const setup = await createCapabilities(env, request).auth.runSetupAction!('done', 'all');
         expect(saved[0]).toEqual({ enabled: false, answered: true });
         expect(setup.complete).toBe(false);
+    });
+});
+
+describe('the checklist in the sign-in window', () => {
+    const foldersRequest: BilibiliRequest = async (operation) => {
+        if (operation === 'nav') return { code: 0, data: { mid: 42 } };
+        if (operation === 'favFolders') {
+            return { code: 0, data: { count: 2, list: [
+                { id: 111, title: 'MUSIC', attr: 1, media_count: 5, cover: '' },
+                { id: 222, title: 'TUTORIAL', attr: 22, media_count: 9, cover: '' },
+            ] } };
+        }
+        return { code: 0, data: null };
+    };
+
+    const withFilter = () => {
+        const state = { enabled: false, selected: [] as string[], answered: false };
+        const saved: Array<Record<string, unknown>> = [];
+        const env = {
+            ...(createEnv() as unknown as Record<string, unknown>),
+            folderFilter: {
+                read: () => ({ ...state, selected: [...state.selected] }),
+                save: (patch: Record<string, unknown>) => { saved.push(patch); Object.assign(state, patch); },
+                open: () => undefined,
+            },
+        } as unknown as BilibiliCoreEnv;
+        return { capabilities: createCapabilities(env, foldersRequest), saved };
+    };
+
+    it('one step per folder, plus the one that finishes', async () => {
+        const { capabilities } = withFilter();
+        const view = (await capabilities.auth.getSetup!())!;
+        expect(view.steps).toHaveLength(3);
+        expect(view.steps[0]?.id).toBe('fav:111');
+        expect(view.steps.at(-1)?.id).toBe('done');
+        // The list is never folded away on open: the host hides a complete checklist and this list IS the feature.
+        expect(view.complete).toBe(false);
+    });
+
+    it('checking a folder writes it, checking it again takes it out', async () => {
+        const { capabilities, saved } = withFilter();
+        const after = await capabilities.auth.runSetupAction!('fav:111', 'toggle');
+        expect(saved[0]).toEqual({ selected: ['fav:111'], enabled: true });
+        expect(after.steps[0]?.state).toBe('done');
+
+        await capabilities.auth.runSetupAction!('fav:111', 'toggle');
+        expect(saved[1]).toEqual({ selected: [], enabled: false });
+    });
+
+    it('finishing writes the answer, so it is only offered once', async () => {
+        const { capabilities, saved } = withFilter();
+        await capabilities.auth.runSetupAction!('done', 'done');
+        expect(saved[0]).toEqual({ answered: true });
+        await capabilities.auth.runSetupAction!('done', 'all');
+        expect(saved[1]).toEqual({ enabled: false, answered: true });
     });
 });

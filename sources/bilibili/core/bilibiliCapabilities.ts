@@ -313,7 +313,7 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
         const folders = data?.list ?? [];
         folderStepsCache = folders.map(folder => ({
             id: folderSongId(folder.id),
-            title: String(folder.title ?? folder.id ?? ''),
+            title: env.text('filter.folder', { name: String(folder.title ?? folder.id ?? '') }),
             detail: typeof folder.media_count === 'number'
                 ? env.translate('filter.count', { n: folder.media_count })
                 : undefined,
@@ -353,9 +353,10 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
         });
         return {
             title: env.text('filter.title'),
-            note: env.text('filter.note'),
+            note: env.translate('filter.note'),
             steps: marked,
-            complete: filter?.answered === true,
+            // Never complete on open: the host folds the checklist away when it is, and this list is the feature.
+            complete: false,
         };
     };
     const library: FoliumSourceLibrary = {

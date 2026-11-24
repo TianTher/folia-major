@@ -3,112 +3,74 @@ import type { BilibiliCoreEnv, BilibiliRequest } from '../../../sources/bilibili
 import { createCapabilities } from '../../../sources/bilibili/core/bilibiliCapabilities';
 
 // test/unit/bilibili/covers.test.ts
-// A folder's cover is not in the folder list (all 86 folders of a real account answered an empty `cover`); it is in
-// that folder's own first page. The library fills it from there in the background — never in the account read's own
-// path, which the host times out (measured 2026-11-25: 30 covers in a row made the whole read fail).
+// Folder covers are cached in the main entry: the account read applies them with one local call and asks bilibili for
+// nothing itself (86 folders × 1 request per read was slow and rude to the account — 2026-11-25). What the cache lacks
+// is warmed afterwards, a few folders a read; opening a folder adds its own cover for free.
 
-const createEnv = () => {
-    const kept = new Map<string, string>();
-    const env = {
-        modId: 'bilibili',
-        call: () => Promise.reject(new Error('no main entry in this test')),
-        text: (key: string) => key,
-        translate: (key: string) => key,
-        error: (code: string, message: string) => Object.assign(new Error(message), { code }),
-        pageStore: () => ({
-            get: (key: string) => kept.get(key) ?? null,
-            set: (key: string, value: string | null) => { if (value === null) kept.delete(key); else kept.set(key, value); },
-            keys: () => [...kept.keys()],
-        }),
-    } as unknown as BilibiliCoreEnv;
-    return { env, kept };
-};
-
-/** Lets the detached cover pass run. */
-const settle = () => new Promise(resolve => setTimeout(resolve, 50));
+const createEnv = () => ({
+    modId: 'bilibili',
+    call: () => Promise.reject(new Error('no main entry in this test')),
+    text: (key: string) => key,
+    translate: (key: string) => key,
+    error: (code: string, message: string) => Object.assign(new Error(message), { code }),
+    pageStore: () => ({ get: () => null, set: () => undefined, keys: () => [] }),
+}) as unknown as BilibiliCoreEnv;
 
 const folders = [
     { id: 111, title: 'FOLDER A', attr: 1, media_count: 2, cover: '' },
     { id: 222, title: 'FOLDER B', attr: 22, media_count: 1, cover: '' },
 ];
 
+const settle = () => new Promise(resolve => setTimeout(resolve, 80));
+
 describe('folder covers', () => {
-    it('reads the cover from the folder page and keeps it', async () => {
-        const { env, kept } = createEnv();
-        const asked: string[] = [];
-        const request: BilibiliRequest = async (operation, params) => {
-            asked.push(operation);
+    it('applies what the main entry keeps', async () => {
+        const request: BilibiliRequest = async (operation) => {
             if (operation === 'favFolders') return { code: 0, data: { count: 2, list: folders } };
-            if (operation === 'favItems') {
-                const mediaId = String(params?.media_id);
-                return { code: 0, data: { info: { cover: `http://i0.hdslb.com/bfs/archive/${mediaId}.jpg` }, medias: [] } };
+            if (operation === 'coversGet') return { code: 0, data: { 'fav:111': 'https://i0.hdslb.com/a.jpg@400w_400h_1c.webp' } };
+            return { code: 0, data: null };
+        };
+
+        const page = await createCapabilities(createEnv(), request).library.getUserPlaylists('42', 10, 0);
+        expect(page.items).toHaveLength(2);
+        expect(page.items[0]?.coverUrl).toBe('https://i0.hdslb.com/a.jpg@400w_400h_1c.webp');
+    });
+
+    it('warms the folders it does not know, after answering, and puts them away', async () => {
+        const kept: Record<string, string> = {};
+        const request: BilibiliRequest = async (operation, params) => {
+            if (operation === 'favFolders') return { code: 0, data: { count: 2, list: folders } };
+            if (operation === 'coversGet') return { code: 0, data: { ...kept } };
+            if (operation === 'favItems') return { code: 0, data: { info: { cover: `http://i0.hdslb.com/${String(params?.media_id)}.jpg` }, medias: [] } };
+            if (operation === 'coversPut') {
+                kept[String(params?.id)] = String(params?.cover);
+                return { code: 0, data: null };
             }
             return { code: 0, data: null };
         };
 
-        const page = await createCapabilities(env, request).library.getUserPlaylists('42', 10, 0);
-        // The read answers at once; the covers come after it, so a slow CDN can never hold the account read up.
+        const page = await createCapabilities(createEnv(), request).library.getUserPlaylists('42', 10, 0);
+        // The read answered before any cover was asked for.
+        expect(page.items[0]?.coverUrl).toBeUndefined();
         expect(page.items).toHaveLength(2);
         await settle();
-        expect(asked.filter(op => op === 'favItems')).toHaveLength(2);
-        expect(page.items[0]?.coverUrl).toBe('https://i0.hdslb.com/bfs/archive/111.jpg@400w_400h_1c.webp');
-        expect(page.items[1]?.coverUrl).toBe('https://i0.hdslb.com/bfs/archive/222.jpg@400w_400h_1c.webp');
-        expect(kept.size).toBe(2);
+        expect(kept['fav:111']).toBe('https://i0.hdslb.com/111.jpg@400w_400h_1c.webp');
     });
 
-    it('does not ask again on the next read', async () => {
-        const { env } = createEnv();
-        let folderPageCalls = 0;
+    it('learns a folder’s cover from the page it opens, without a request of its own', async () => {
+        const kept: Record<string, string> = {};
         const request: BilibiliRequest = async (operation, params) => {
-            if (operation === 'favFolders') return { code: 0, data: { count: 2, list: folders } };
             if (operation === 'favItems') {
-                folderPageCalls += 1;
-                return { code: 0, data: { info: { cover: `http://i0.hdslb.com/bfs/archive/${String(params?.media_id)}.jpg` }, medias: [] } };
+                return { code: 0, data: { info: { media_count: 1, cover: 'http://i0.hdslb.com/opened.jpg' }, medias: [], has_more: false } };
+            }
+            if (operation === 'coversPut') {
+                kept[String(params?.id)] = String(params?.cover);
+                return { code: 0, data: null };
             }
             return { code: 0, data: null };
         };
-        const library = createCapabilities(env, request).library;
-        await library.getUserPlaylists('42', 10, 0);
+        await createCapabilities(createEnv(), request).catalog.getPlaylistTracks!('fav:111', 20, 0);
         await settle();
-        const before = folderPageCalls;
-        const again = await library.getUserPlaylists('42', 10, 0);
-        await settle();
-        expect(folderPageCalls).toBe(before);
-        expect(again.items[0]?.coverUrl).toBeTruthy();
-    });
-
-    it('falls back to the first entry that still plays when the folder has no cover of its own', async () => {
-        const { env } = createEnv();
-        const request: BilibiliRequest = async (operation) => {
-            if (operation === 'favFolders') return { code: 0, data: { count: 1, list: [folders[0]] } };
-            if (operation === 'favItems') {
-                return {
-                    code: 0,
-                    data: {
-                        info: { cover: '' },
-                        medias: [
-                            { id: 1, type: 2, attr: 9, cover: 'http://i0.hdslb.com/bfs/archive/gone.jpg' },
-                            { id: 2, type: 2, attr: 0, cover: 'http://i0.hdslb.com/bfs/archive/alive.jpg' },
-                        ],
-                    },
-                };
-            }
-            return { code: 0, data: null };
-        };
-        const page = await createCapabilities(env, request).library.getUserPlaylists('42', 10, 0);
-        await settle();
-        expect(page.items[0]?.coverUrl).toBe('https://i0.hdslb.com/bfs/archive/alive.jpg@400w_400h_1c.webp');
-    });
-
-    it('keeps the host placeholder when a folder will not answer', async () => {
-        const { env } = createEnv();
-        const request: BilibiliRequest = async (operation) => {
-            if (operation === 'favFolders') return { code: 0, data: { count: 1, list: [folders[0]] } };
-            throw Object.assign(new Error('busy'), { code: 'unavailable' });
-        };
-        const page = await createCapabilities(env, request).library.getUserPlaylists('42', 10, 0);
-        await settle();
-        expect(page.items[0]?.coverUrl).toBeUndefined();
-        expect(page.items).toHaveLength(1);
+        expect(kept['fav:111']).toBe('https://i0.hdslb.com/opened.jpg@400w_400h_1c.webp');
     });
 });

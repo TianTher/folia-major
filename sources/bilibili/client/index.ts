@@ -1,5 +1,6 @@
 import type { FoliumClientApi } from '@folia/folium';
 import { createSource } from '../core';
+import { createFolderFilter } from './folderFilter';
 
 // sources/bilibili/client/index.ts
 // The desktop mod's client entry: the rpc the main entry answers, the mod's own language table, and the source
@@ -7,6 +8,8 @@ import { createSource } from '../core';
 
 /** What the main entry answers: one operation, one envelope. */
 export default function activate(folium: FoliumClientApi): void {
+    // The folder filter is the listener's own choice, kept in the mod's settings; the source only reads it.
+    const folders = createFolderFilter(folium);
     folium.sources.register(createSource({
         modId: 'bilibili',
         call: <T>(name: string, ...args: unknown[]) => folium.rpc.call<T>(name, ...args),
@@ -14,5 +17,6 @@ export default function activate(folium: FoliumClientApi): void {
         translate: key => folium.i18n.text(key),
         error: (code, message, details) => folium.sources.error(code, message, details),
         pageStore: sourceId => folium.sources.pageStore(sourceId),
+        folderFilter: folders.api,
     }));
 }

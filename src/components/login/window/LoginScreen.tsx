@@ -71,6 +71,8 @@ export type LoginScreenProps = {
     setup?: LibraryProviderSetupSnapshot | null;
     /** 选中的这个平台有配置清单：账号那一幅多一个打开它的按钮。 */
     canOpenSetup?: boolean;
+    /** 那个按钮叫什么：平台自己给的名字（B 站是「收藏夹筛选」）；没有就用宿主的通用词。 */
+    setupEntryTitle?: string | null;
     onOpenSetup?: () => void;
     /** 做清单上的一个操作；回 true 是平台做完了。 */
     onSetupAction?: (stepId: string, actionId: string, value?: string) => Promise<boolean>;
@@ -97,7 +99,7 @@ const useReached = (at: number): boolean => {
 export const LoginScreen: React.FC<LoginScreenProps> = ({
     isOpen, onClose, rows, activeProviderId, chosen, login, onChoose, onInstallSourceMod, onStart, onSubmitForm, onSelectMethod, onReopenBrowser, onRestartService, onSwitch, onSignOut,
     onSync, syncingProviderId = null, buildReport, origin, done = false, onDoneLeave = nothing, onDoneEnd = nothing,
-    setup = null, canOpenSetup = false, onOpenSetup = nothing, onSetupAction = nothingDone, onFinishSetup = nothing,
+    setup = null, canOpenSetup = false, setupEntryTitle = null, onOpenSetup = nothing, onSetupAction = nothingDone, onFinishSetup = nothing,
 }) => {
     const { t } = useTranslation();
     const still = useKitReducedMotion();
@@ -181,7 +183,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                 busy: syncing,
                 disabled: syncingProviderId !== null,
             };
-            const setupAction: MessageAction[] = canOpenSetup ? [{ label: t('login.setupOpen'), onClick: onOpenSetup }] : [];
+            // The entry says what it opens: a source that names its setup view ("收藏夹筛选") gets that name instead of the
+    // host's generic "playback setup" (Bilibili, 2026-11-25). Spotify keeps the generic one.
+    const setupAction: MessageAction[] = canOpenSetup
+        ? [{ label: setupEntryTitle ?? (shownSetup ? t(shownSetup.view.titleKey) : t('login.setupOpen')), onClick: onOpenSetup }]
+        : [];
             actions = [...switchAction, syncAction, ...setupAction, { label: t('account.logout'), onClick: onSignOut }];
         }
     } else if (scene === 'accountless') {

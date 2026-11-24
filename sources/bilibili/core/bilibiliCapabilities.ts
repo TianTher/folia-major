@@ -8,6 +8,8 @@ import type {
     FoliumSourceLibrary,
     FoliumSourceLoginState,
     FoliumSourceLyrics,
+    FoliumSourceSetupStep,
+    FoliumSourceSetupView,
     FoliumSourcePage,
     FoliumSourceSong,
     FoliumSourceSongs,
@@ -112,7 +114,7 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
             ps: FOLDER_PAGE_SIZE,
             platform: 'web',
         });
-        const data = unwrap<{ medias?: BilibiliMedia[] | null; has_more?: boolean; info?: { media_count?: number } }>(
+        const data = unwrap<{ medias?: BilibiliMedia[] | null; has_more?: boolean; info?: { media_count?: number; cover?: string } }>(
             answer, fail, 'favItems',
         );
         const medias = data.medias ?? [];
@@ -120,6 +122,7 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
             entries: medias.map(media => (isVideoMedia(media) && isPlayableMedia(media) ? toSong(media) : null)),
             hasMore: data.has_more === true,
             total: data.info?.media_count,
+            infoCover: data.info?.cover,
         };
     };
 
@@ -172,6 +175,26 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
         async cancelLogin(key) {
             pendingSignIns.delete(key);
         },
+        async checkAfterLogin() {
+            return env.folderFilter?.read().answered ? null : await folderSetupView();
+        },
+        async getSetup() {
+            return env.folderFilter ? await folderSetupView() : null;
+        },
+        async runSetupAction(stepId, actionId) {
+            const filter = env.folderFilter;
+            if (!filter) return await folderSetupView();
+            if (stepId === 'done') {
+                filter.save(actionId === 'all' ? { enabled: false, answered: true } : { answered: true });
+            } else {
+                // One folder's line: checking it puts the folder in, checking it again takes it out.
+                const selected = new Set(filter.read().selected);
+                if (selected.has(stepId)) selected.delete(stepId);
+                else selected.add(stepId);
+                filter.save({ selected: [...selected], enabled: selected.size > 0 });
+            }
+            return await folderSetupView();
+        },
     };
 
     /**
@@ -207,45 +230,57 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
     };
 
     /**
-     * Fills the covers of the folders just handed out — **inside the read**, because the host turns each collection
-     * into its own object the moment it is answered: a cover added afterwards never reaches the wall (measured
-     * 2026-11-25; the requests fired, the cards kept their placeholder). Bounded twice: at most
-     * `FOLDER_COVER_BUDGET` folders, in parallel, and the read waits no more than `FOLDER_COVER_DEADLINE_MS` — the
-     * rest keep their placeholder until a later read.
+    /**
+     * Folder covers, cheaply. The folder list answers an empty `cover` for every folder; the real one is in that
+     * folder's own page (`resource/list` → `data.info.cover`), one request a folder. Asking for 86 of them whenever the
+     * account is read is both slow (the read has a deadline) and rude to the account, so:
+     *
+     * - what has been learned is kept **in the main entry** (`bilibili_covers`), so it survives a restart;
+     * - the read applies it from there — one local call, no network — so a cover is in the snapshot the wall keeps;
+     * - a few folders are warmed after the answer (`FOLDER_COVER_WARM_PER_READ`), one at a time, 400 ms apart;
+     * - opening a folder warms its own cover for free: the page it reads already carries `info.cover`.
      */
-    const fillFolderCovers = async (items: FoliumSourceCollection[]): Promise<void> => {
-        const missing = items.filter(item => !item.coverUrl).slice(0, FOLDER_COVER_BUDGET);
-        await Promise.all(missing.map(async (item) => {
-            const key = `cover:${item.id}`;
-            const kept = readFolderCover(key);
-            if (kept) {
-                item.coverUrl = kept;
-                return;
-            }
-            try {
-                const mediaId = mediaIdOfFolder(item.id);
-                const page = unwrap<{ info?: { cover?: string }; medias?: BilibiliMedia[] | null }>(
-                    await request('favItems', { media_id: mediaId, pn: 1, ps: 1 }), fail, 'favItems',
-                );
-                const own = coverAt(page.info?.cover, 400);
-                // Where the folder has no cover of its own (the entry bilibili took it from is gone), the first entry
-                // that still plays stands in — that needs a page with more than one entry.
-                const cover = own ?? (await (async () => {
-                    const wider = unwrap<{ medias?: BilibiliMedia[] | null }>(
-                        await request('favItems', { media_id: mediaId, pn: 1, ps: 20 }), fail, 'favItems',
-                    );
-                    const alive = (wider.medias ?? []).find(media => (media.attr ?? 0) === 0 && (media.type ?? 2) === 2 && media.cover);
-                    return coverAt(alive?.cover, 400) ?? null;
-                })());
-                if (!cover) return;
-                item.coverUrl = cover;
-                keepFolderCover(key, cover);
-            } catch {
-                // A cover is decoration: a folder that will not answer keeps the host's own placeholder.
-            }
-        }));
+    const FOLDER_COVER_WARM_PER_READ = 10;
+
+    const coversKey = 'bilibili_covers';
+
+    const readCachedCovers = async (): Promise<Record<string, string>> => {
+        try {
+            const data = unwrapOrNull<Record<string, string>>(await request('coversGet'), fail, 'coversGet');
+            return data && typeof data === 'object' ? data : {};
+        } catch {
+            return {};
+        }
     };
 
+    const rememberCover = async (id: string, cover: string): Promise<void> => {
+        try {
+            await request('coversPut', { id, cover });
+        } catch {
+            // A cover is decoration; nothing depends on it.
+        }
+    };
+
+    /** One folder's cover from its own page, with the folder's own entry as the fallback when that is gone. */
+    const coverOfFolder = async (mediaId: string): Promise<string | null> => {
+        const page = unwrapOrNull<{ info?: { cover?: string } }>(
+            await request('favItems', { media_id: mediaId, pn: 1, ps: 1 }), fail, 'favItems',
+        );
+        return coverAt(page?.info?.cover, 400) ?? null;
+    };
+
+    /** Warms the covers the cache does not have yet, slowly, after the account read has already been answered. */
+    const warmFolderCovers = async (folders: FoliumSourceCollection[], known: Record<string, string>): Promise<void> => {
+        const missing = folders.filter(folder => !known[folder.id]).slice(0, FOLDER_COVER_WARM_PER_READ);
+        for (const folder of missing) {
+            const cover = await coverOfFolder(mediaIdOfFolder(folder.id));
+            if (cover) {
+                known[folder.id] = cover;
+                await rememberCover(folder.id, cover);
+            }
+            await new Promise<void>(resolve => { setTimeout(resolve, 400); });
+        }
+    };
     const withDeadline = async <T>(work: Promise<T>, ms: number): Promise<void> => {
         await Promise.race([
             work.catch(() => undefined),
@@ -253,15 +288,89 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
         ]);
     };
 
+    /** The folders the listener wants to see: every one of them unless the filter is on. */
+    const visibleFolders = (folders: FoliumSourceCollection[]): FoliumSourceCollection[] => {
+        const filter = env.folderFilter?.read();
+        if (!filter || !filter.enabled) return folders;
+        return folders.filter(folder => filter.selected.includes(folder.id));
+    };
+
+    /**
+     * The folder list, in the sign-in window itself: one step per folder, each with the action that checks or unchecks
+     * it. The host draws the list and re-draws it after every action, so this is the checklist — no page of its own, no
+     * second window (2026-11-25). Kept for the session: building it again for every toggle would ask bilibili again.
+     */
+    let folderStepsCache: FoliumSourceSetupStep[] | null = null;
+
+    const folderSteps = async (): Promise<FoliumSourceSetupStep[]> => {
+        if (folderStepsCache) return folderStepsCache;
+        const nav = unwrapOrNull<{ mid?: number }>(await request('nav'), fail, 'nav');
+        const mid = nav?.mid;
+        if (typeof mid !== 'number') return [];
+        const data = unwrapOrNull<{ list?: BilibiliFolder[] | null }>(
+            await request('favFolders', { up_mid: mid }), fail, 'favFolders',
+        );
+        const folders = data?.list ?? [];
+        folderStepsCache = folders.map(folder => ({
+            id: folderSongId(folder.id),
+            title: String(folder.title ?? folder.id ?? ''),
+            detail: typeof folder.media_count === 'number'
+                ? env.translate('filter.count', { n: folder.media_count })
+                : undefined,
+            state: 'todo',
+            actions: [{ id: 'toggle', label: env.text('filter.toggle'), kind: 'run' }],
+        }));
+        return folderStepsCache;
+    };
+
+    const folderSetupView = async (): Promise<FoliumSourceSetupView> => {
+        const filter = env.folderFilter?.read();
+        const chosen = new Set(filter?.selected ?? []);
+        let steps: FoliumSourceSetupStep[] = [];
+        try {
+            steps = await folderSteps();
+        } catch (error) {
+            // Say it on the panel rather than showing nothing: an empty list looks like the feature is missing.
+            steps = [{ id: 'failed', title: env.text('filter.failed'), state: 'error' } as FoliumSourceSetupStep];
+        }
+        if (!steps.length) {
+            steps = [{ id: 'empty', title: env.text('filter.failed'), state: 'warn' } as FoliumSourceSetupStep];
+        }
+        const marked = steps.map(step => ({
+            ...step,
+            state: chosen.has(step.id) ? ('done' as const) : ('todo' as const),
+            actions: [{ id: 'toggle', label: chosen.has(step.id) ? env.text('filter.off') : env.text('filter.on'), kind: 'run' as const }],
+        }));
+        marked.push({
+            id: 'done',
+            title: env.text('filter.finish'),
+            note: env.text('filter.stepNote', { chosen: chosen.size }),
+            state: filter?.answered ? 'done' : 'todo',
+            actions: [
+                { id: 'done', label: env.text('filter.finish'), kind: 'run' },
+                { id: 'all', label: env.text('filter.all'), kind: 'run' },
+            ],
+        });
+        return {
+            title: env.text('filter.title'),
+            note: env.text('filter.note'),
+            steps: marked,
+            complete: filter?.answered === true,
+        };
+    };
     const library: FoliumSourceLibrary = {
         async getUserPlaylists(userId, limit, offset): Promise<FoliumSourcePage<ReturnType<typeof toCollection>>> {
             const data = unwrap<{ list?: BilibiliFolder[] | null }>(
                 await request('favFolders', { up_mid: userId }), fail, 'favFolders',
             );
-            const folders = (data.list ?? []).map(toCollection);
+            const folders = visibleFolders((data.list ?? []).map(toCollection));
             const items = folders.slice(offset, offset + limit);
-            // Bounded: the read answers within the deadline whatever a cover does.
-            await withDeadline(fillFolderCovers(items), FOLDER_COVER_DEADLINE_MS);
+            // Local only: no request to bilibili happens on the account read's path.
+            const known = await readCachedCovers();
+            for (const item of items) {
+                if (!item.coverUrl && known[item.id]) item.coverUrl = known[item.id];
+            }
+            void warmFolderCovers(folders, known);
             return { items, total: folders.length, hasMore: offset + limit < folders.length };
         },
     };
@@ -282,6 +391,9 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
                 total = answer.total ?? total;
                 window.push(...answer.entries);
                 hasMore = answer.hasMore;
+                // Opening a folder is how its cover is learned for free: this page already carries it.
+                const freeCover = coverAt(answer.infoCover, 400);
+                if (freeCover) void rememberCover(id, freeCover);
                 if (!answer.entries.length && !answer.hasMore) break;
             }
             const start = offset % FOLDER_PAGE_SIZE;

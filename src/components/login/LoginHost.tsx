@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+
 import { useTranslation } from 'react-i18next';
 import type { LibraryAccountController, LibraryAccountSnapshot, LibraryLoginSessionSnapshot } from '../../library/core/account/account.contract';
 import {
@@ -63,6 +64,19 @@ const LoginHost: React.FC<LoginHostProps> = ({ account }) => {
     }), []);
     const { chosen, done } = useSyncExternalStore(host.subscribe, host.getState);
     const providerId = chosen?.providerId ?? null;
+
+    // What the account row's setup entry is called: a source that names its own view (Bilibili's is 收藏夹筛选) is
+    // asked once per provider, instead of the entry showing the host's generic words until it is opened.
+    const [setupEntryTitle, setSetupEntryTitle] = useState<string | null>(null);
+    useEffect(() => {
+        setSetupEntryTitle(null);
+        if (!providerId || !omni.hasSetup(providerId)) return undefined;
+        let alive = true;
+        void omni.getSetup(providerId)
+            .then(view => { if (alive && view) setSetupEntryTitle(t(view.titleKey)); })
+            .catch(() => undefined);
+        return () => { alive = false; };
+    }, [providerId, t]);
 
     // 跟着窗口的开关走：每打开一次从头来；关了（不管是谁关的）就停下正在进行的登录。
     useEffect(() => {
@@ -152,6 +166,7 @@ const LoginHost: React.FC<LoginHostProps> = ({ account }) => {
             setup={setup}
             // 有配置清单的平台（omni.hasSetup）：账号那一幅多一个打开它的按钮。
             canOpenSetup={providerId !== null && omni.hasSetup(providerId)}
+            setupEntryTitle={setupEntryTitle}
             onOpenSetup={host.openSetupChosen}
             onSetupAction={(stepId, actionId, value) => account.runSetupAction(stepId, actionId, value).then(result => result.status === 'done')}
             onFinishSetup={() => void account.finishSetup()}

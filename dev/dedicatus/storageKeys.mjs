@@ -10,6 +10,7 @@ export const STORAGE_KEYS = [
     'main:AI_PROVIDER_PRESET',
     'main:APP_LOCALE',
     'main:BACKGROUND_THROTTLING',
+    'main:bilibili_covers',
     'main:bilibili_session',
     'main:BODIAN_DEVICE_ID',
     'main:BODIAN_SESSION_V2',

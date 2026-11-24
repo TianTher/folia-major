@@ -1473,6 +1473,8 @@ export interface FoliumUiService {
     openPlayerPanel(tabId?: string): void;
     /** Opens this mod's registered home tab (local id). Rejects unknown tabs. */
     openHomeTab(tabId: string): void;
+    /** Opens the host's settings window on 	ab (the mods page when left out), where this mod's sections live. */
+    openSettings(tab?: string): void;
     /** Switches to the home or player view. */
     navigate(view: 'home' | 'player'): void;
     /** Opens the host volume panel (the command palette's volume command). */

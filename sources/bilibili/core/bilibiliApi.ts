@@ -20,6 +20,10 @@ export type BilibiliOperation =
     | 'logout'
     | 'favFolders'
     | 'favItems'
+    | 'filterGet'
+    | 'filterPut'
+    | 'coversGet'
+    | 'coversPut'
     | 'playerInfo'
     | 'subtitle'
     | 'view'
@@ -37,6 +41,27 @@ export interface BilibiliWebEnv {
     apiBase: string;
 }
 
+/**
+ * The listener's choice of which folders to show (B站 is a video platform: most folders are not song lists). The core
+ * only reads it; the client owns where it is kept and which page edits it.
+ */
+export interface BilibiliFolderFilter {
+    /** Off: every folder shows, as before the filter existed. */
+    enabled: boolean;
+    /** The folders to show, as collection ids (`fav:<media_id>`). Empty with `enabled` on means none. */
+    selected: readonly string[];
+    /** The listener has been through the filter once (it is offered right after a sign-in). */
+    answered: boolean;
+}
+
+/** How the client hands the filter to the core, and how the core asks for its page. */
+export interface BilibiliFolderFilterApi {
+    read(): BilibiliFolderFilter;
+    save(patch: Partial<BilibiliFolderFilter>): void;
+    /** Opens the folder filter's page (the checklist). */
+    open(): void;
+}
+
 /** What createSource is handed: the desktop client's env, and on the web the web build's pieces. */
 export interface BilibiliCoreEnv {
     modId: string;
@@ -46,6 +71,8 @@ export interface BilibiliCoreEnv {
     error(code: FoliumSourceErrorCode, message: string, details?: FoliumSourceErrorDetails): FoliumSourceError;
     pageStore(sourceId: string): FoliumSourcePageStore;
     web?: BilibiliWebEnv;
+    /** The folder filter; absent where there is no settings surface (then every folder shows). */
+    folderFilter?: BilibiliFolderFilterApi;
 }
 
 /** The platform's error codes this source tells apart (the rest go out as `unavailable`). */

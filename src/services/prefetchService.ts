@@ -373,8 +373,10 @@ const prefetchSong = async (
     // Prefetch lyrics (if not cached), for an item that has any (itemTraits, plan §4.4)
     if (!data.lyrics && itemTraits(song).lyrics !== 'none') {
         try {
-            // Check IndexedDB cache first
-            const cachedLyrics = await readCachedPlaybackLyrics(song);
+            // An item that keeps only its own lyrics does not take a lyric an earlier match stored: it is another
+            // song's (a video whose source says `own`, measured 2026-11-25). Its own is fetched below every time.
+            const trustsStoredLyrics = itemTraits(song).lyrics !== 'own';
+            const cachedLyrics = trustsStoredLyrics ? await readCachedPlaybackLyrics(song) : null;
             if (cachedLyrics) {
                 console.log(`[Prefetch] Lyrics in IndexedDB for: ${song.name}`);
                 data.lyrics = cachedLyrics;
@@ -404,7 +406,7 @@ const prefetchSong = async (
                 let parsedLyrics = processed.lyrics;
                 let finalLyrics = parsedLyrics;
 
-                const onlineLyricsState = await loadOnlineLyricsState(song);
+                const onlineLyricsState = trustsStoredLyrics ? await loadOnlineLyricsState(song) : null;
                 const resolvedLyrics = resolveOnlineLyrics(onlineLyricsState, parsedLyrics);
 
   const settingsAudioSettings = useAudioSettingsStore.getState();

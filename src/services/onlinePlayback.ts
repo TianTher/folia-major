@@ -213,6 +213,9 @@ export async function loadOnlineSongLyrics(
     }
     // `own`: only its source's own lyrics; another source's are never matched in for it.
     const mayMatchOthers = itemLyrics === 'match';
+    // An item that keeps only its own lyrics does not trust what an earlier match left behind either: a lyric stored
+    // before the source said `own` (or written by another source for the same id) is not this video's.
+    const trustsStoredLyrics = itemLyrics !== 'own';
     const lyricCacheKey = getSongResourceCacheKey('lyric', song);
     const onlineLyricsState = await loadOnlineLyricsState(song);
   const initialSettingsLyricSettings = useLyricSettingsStore.getState();
@@ -223,11 +226,11 @@ export async function loadOnlineSongLyrics(
     // With the best-lyric search on, the cached entry is not what plays (only an imported or chosen lyric is, and the
     // reader leaves the entry alone under those): the lyrics are fetched below and written over it, so an entry saved
     // before chorus origins is not fetched a second time here, ahead of the audio.
-    const cachedLyrics = await readCachedPlaybackLyrics(song, { refresh: !initialSettingsLyricSettings.autoUseBestLyric });
+    const cachedLyrics = trustsStoredLyrics ? await readCachedPlaybackLyrics(song, { refresh: !initialSettingsLyricSettings.autoUseBestLyric }) : null;
     if (!isCurrent()) return;
-    const preferredCachedLyrics = resolveOnlineLyrics(onlineLyricsState, cachedLyrics);
-    const hasAuthoritativeLyricsSelection = onlineLyricsState?.lyricsSource === 'imported'
-        || Boolean(onlineLyricsState?.hasOnlineOverride);
+    const preferredCachedLyrics = resolveOnlineLyrics(trustsStoredLyrics ? onlineLyricsState : null, cachedLyrics);
+    const hasAuthoritativeLyricsSelection = trustsStoredLyrics && (onlineLyricsState?.lyricsSource === 'imported'
+        || Boolean(onlineLyricsState?.hasOnlineOverride));
     // A platform whose own word timing is kept as it is (`prefersOwnWordByWord`) is not searched
     // for another source when it is also the preferred one: the automatic pick would replace the
     // timing the song actually has. Any other preferred source is still asked (issue #1127).

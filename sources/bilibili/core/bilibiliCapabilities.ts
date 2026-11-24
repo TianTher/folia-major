@@ -180,7 +180,9 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
      * pages read it from. One small request a folder, kept in the page store, and only for the folders the host is
      * drawing right now: never the whole library at once.
      */
-    const FOLDER_COVER_BUDGET = 12;
+    const FOLDER_COVER_BUDGET = 20;
+    /** How long the read may spend on covers before answering without them. */
+    const FOLDER_COVER_DEADLINE_MS = 1500;
 
     /** Kept for this run; the page store is a convenience, not something the fill can depend on. */
     const coversThisRun = new Map<string, string>();
@@ -205,38 +207,40 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
     };
 
     /**
-     * Fills the covers of the folders just handed out. **Never awaited by the read**: a folder cover is decoration,
-     * and the account read has its own deadline in the host — 30 requests in a row made that read fail (同步失败,
-     * 2026-11-25). Everything here is best effort, and nothing it does can reach the caller.
+     * Fills the covers of the folders just handed out — **inside the read**, because the host turns each collection
+     * into its own object the moment it is answered: a cover added afterwards never reaches the wall (measured
+     * 2026-11-25; the requests fired, the cards kept their placeholder). So it is bounded twice: at most
+     * `FOLDER_COVER_BUDGET` folders, in parallel, and the read waits no more than `FOLDER_COVER_DEADLINE_MS` — the
+     * rest keep their placeholder and are filled by a later read, from the cache this keeps.
      */
     const fillFolderCovers = async (items: FoliumSourceCollection[]): Promise<void> => {
-        try {
-            let budget = FOLDER_COVER_BUDGET;
-            for (const item of items) {
-                if (item.coverUrl) continue;
-                const key = `cover:${item.id}`;
-                const kept = readFolderCover(key);
-                if (kept) {
-                    item.coverUrl = kept;
-                    continue;
-                }
-                if (budget <= 0) continue;
-                budget -= 1;
-                try {
-                    const data = unwrap<{ info?: { cover?: string } }>(
-                        await request('favItems', { media_id: mediaIdOfFolder(item.id), pn: 1, ps: 1 }), fail, 'favItems',
-                    );
-                    const cover = coverAt(data.info?.cover, 400);
-                    if (!cover) continue;
-                    item.coverUrl = cover;
-                    keepFolderCover(key, cover);
-                } catch {
-                    // A cover is decoration: a folder that will not answer keeps the host's own placeholder.
-                }
+        const missing = items.filter(item => !item.coverUrl).slice(0, FOLDER_COVER_BUDGET);
+        await Promise.all(missing.map(async (item) => {
+            const key = `cover:${item.id}`;
+            const kept = readFolderCover(key);
+            if (kept) {
+                item.coverUrl = kept;
+                return;
             }
-        } catch {
-            // The same, for anything unexpected.
-        }
+            try {
+                const data = unwrap<{ info?: { cover?: string } }>(
+                    await request('favItems', { media_id: mediaIdOfFolder(item.id), pn: 1, ps: 1 }), fail, 'favItems',
+                );
+                const cover = coverAt(data.info?.cover, 400);
+                if (!cover) return;
+                item.coverUrl = cover;
+                keepFolderCover(key, cover);
+            } catch {
+                // A cover is decoration: a folder that will not answer keeps the host's own placeholder.
+            }
+        }));
+    };
+
+    const withDeadline = async <T>(work: Promise<T>, ms: number): Promise<void> => {
+        await Promise.race([
+            work.catch(() => undefined),
+            new Promise<void>(resolve => { setTimeout(resolve, ms); }),
+        ]);
     };
 
     const library: FoliumSourceLibrary = {
@@ -246,8 +250,8 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
             );
             const folders = (data.list ?? []).map(toCollection);
             const items = folders.slice(offset, offset + limit);
-            // Not awaited on purpose: an account read must answer inside the host's deadline whatever a cover does.
-            void fillFolderCovers(items);
+            // Bounded: the read answers within the deadline whatever a cover does.
+            await withDeadline(fillFolderCovers(items), FOLDER_COVER_DEADLINE_MS);
             return { items, total: folders.length, hasMore: offset + limit < folders.length };
         },
     };

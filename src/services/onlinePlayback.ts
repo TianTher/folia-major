@@ -13,6 +13,7 @@ import { omni } from './onlineMusic/omni';
 import { autoRetryDelaysMs, logOnlineFailure, onlineFailureOf, type OnlineFailure } from './onlineMusic/failure/onlineFailureCase';
 import { noteOnlineRequestCooldown, onlineRequestCooldown } from './onlineMusic/failure/onlineRequestCooldown';
 import { getSongResourceCacheKey } from './onlineMusic/resourceKeys';
+import { isOwnLyricsEntry, markOwnLyrics } from './onlineMusic/ownLyricCache';
 import { deleteCachedSongAudio, getCachedSongAudioBlob, getCachedSongReplayGain } from './onlineMusic/resourceCache';
 import { measureSongAudio, notTheSongWhy } from './wholeSongCheck';
 import { isCachedSongAudioDistrusted } from './playbackRecovery/mediaCacheGuard';
@@ -217,9 +218,11 @@ export async function loadOnlineSongLyrics(
     const onlineLyricsState = await loadOnlineLyricsState(song);
     // 听的人自己挑的那一份（导进来的、手动换过的）永远算数：`own` 挡的是"别处匹配来的"和"上一次留下的"。
     const userChosenLyrics = onlineLyricsState?.lyricsSource === 'imported' || Boolean(onlineLyricsState?.hasOnlineOverride);
+    // 只用自己的歌词的条目：缓存里那一份只有在"确实是它自己的"时候才算数（见 ownLyricCache）。
+    const ownLyricsOnly = itemLyrics === 'own' && !userChosenLyrics;
     // An item that keeps only its own lyrics does not trust what an earlier match left behind either: a lyric stored
     // before the source said `own` (or written by another source for the same id) is not this video's.
-    const trustsStoredLyrics = itemLyrics !== 'own' || userChosenLyrics;
+    const trustsStoredLyrics = !ownLyricsOnly;
   const initialSettingsLyricSettings = useLyricSettingsStore.getState();
 
     if (!isCurrent()) return;
@@ -228,9 +231,12 @@ export async function loadOnlineSongLyrics(
     // With the best-lyric search on, the cached entry is not what plays (only an imported or chosen lyric is, and the
     // reader leaves the entry alone under those): the lyrics are fetched below and written over it, so an entry saved
     // before chorus origins is not fetched a second time here, ahead of the audio.
-    const cachedLyrics = trustsStoredLyrics ? await readCachedPlaybackLyrics(song, { refresh: !initialSettingsLyricSettings.autoUseBestLyric }) : null;
+    const cachedLyrics = await readCachedPlaybackLyrics(song, { refresh: !initialSettingsLyricSettings.autoUseBestLyric });
     if (!isCurrent()) return;
-    const preferredCachedLyrics = resolveOnlineLyrics(trustsStoredLyrics ? onlineLyricsState : null, cachedLyrics);
+    // 自己那份歌词：没有记号的老条目可能是别人唱的，丢掉重取一次；带记号的直接用，不再问平台。
+    const ownCacheWins = ownLyricsOnly && isOwnLyricsEntry(cachedLyrics);
+    const usableCachedLyrics = ownLyricsOnly && !ownCacheWins ? null : cachedLyrics;
+    const preferredCachedLyrics = resolveOnlineLyrics(trustsStoredLyrics ? onlineLyricsState : null, usableCachedLyrics);
     const hasAuthoritativeLyricsSelection = trustsStoredLyrics && (onlineLyricsState?.lyricsSource === 'imported'
         || Boolean(onlineLyricsState?.hasOnlineOverride));
     // Nor the lyrics the prefetch store kept for it: those may be another source's match from before the source said
@@ -249,7 +255,9 @@ export async function loadOnlineSongLyrics(
             keepOwn: lyricSettings.keepProviderWordTiming,
         }, lyricSettings.preferredAlternativeLyricSource);
     };
-    if (preferredCachedLyrics && (hasAuthoritativeLyricsSelection || !initialSettingsLyricSettings.autoUseBestLyric)) {
+    // 只用自己的歌词的条目没有"找更好的歌词"这回事（不会去别的源匹配），所以带记号的那一份就是最终答案，
+    // 不必因为 `autoUseBestLyric` 开着而去重取一次（2026-11-26）。
+    if (preferredCachedLyrics && (hasAuthoritativeLyricsSelection || !initialSettingsLyricSettings.autoUseBestLyric || ownCacheWins)) {
         const cachedText = preferredCachedLyrics.lines.map(line => line.fullText).join('\n');
         onPureMusicChange?.(resolveOnlineLyricsPureMusic(onlineLyricsState, cachedText));
         onLyrics(preferredCachedLyrics);
@@ -403,7 +411,8 @@ export async function loadOnlineSongLyrics(
     }
 
     onLyrics(resolvedLyrics);
-    saveToCache(lyricCacheKey, resolvedLyrics);
+    // 只用自己的歌词的条目：写进去的这份带记号，下一次播放就直接用它，不再问平台。
+    saveToCache(lyricCacheKey, ownLyricsOnly ? markOwnLyrics(resolvedLyrics) : resolvedLyrics);
     saveLyricCacheSongMetadata(song);
     onDone();
 }

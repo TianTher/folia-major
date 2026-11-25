@@ -69,17 +69,38 @@ export const createFolderFilter = (folium: FoliumClientApi): FolderFilter => {
     };
 
     let notifyHost: (() => void) | null = null;
+    /** Set while this file writes, so the change subscription below does not notify a second time. */
+    let writing = false;
 
     const saveState = (patch: Partial<BilibiliFolderFilter>): void => {
         const next = { ...readFilter(), ...patch };
-        section.settings.set({
-            [KEYS.enabled]: next.enabled,
-            [KEYS.selected]: next.selected.join(','),
-            [KEYS.answered]: next.answered,
-        });
+        writing = true;
+        try {
+            section.settings.set({
+                [KEYS.enabled]: next.enabled,
+                [KEYS.selected]: next.selected.join(','),
+                [KEYS.answered]: next.answered,
+            });
+        } finally {
+            writing = false;
+        }
         // Only when the list is done: a single checkbox keeps the checklist itself in step, and 86 re-reads would be rude.
         if (patch.answered !== undefined) notifyHost?.();
     };
+
+    /**
+     * Somebody else changed the section: the mod page's「恢复默认」, or a visual config import. Neither goes through
+     * `saveState`, so without this the playlists keep showing what the old choice said until the next sync
+     * (2026-11-26). Only a change of what is shown counts, not one of `answered` alone.
+     */
+    let seen = readFilter();
+    const stopWatching = section.settings.onChange(() => {
+        if (writing) return;
+        const next = readFilter();
+        const changed = next.enabled !== seen.enabled || next.selected.join(',') !== seen.selected.join(',');
+        seen = next;
+        if (changed) notifyHost?.();
+    });
 
     const api: BilibiliFolderFilterApi = {
         read: readFilter,
@@ -90,6 +111,6 @@ export const createFolderFilter = (folium: FoliumClientApi): FolderFilter => {
     return {
         api,
         setNotifier: (notify) => { notifyHost = notify; },
-        dispose: () => { section.unregister(); },
+        dispose: () => { stopWatching(); section.unregister(); },
     };
 };

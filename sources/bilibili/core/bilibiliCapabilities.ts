@@ -35,13 +35,27 @@ import {
 /** How many entries one `resource/list` page holds: measured, 50 and 100 answer -400. */
 export const FOLDER_PAGE_SIZE = 40;
 
-/** What `getAudioSource` may be asked for → the bilibili audio ids we try, best first. */
+/**
+ * What `getAudioSource` may be asked for → the bilibili audio ids we try, best first. Every level ends in the two ids
+ * every video has (30232, 30216): plenty of uploads only carry the low one, and answering "no audio track" for a video
+ * that plays fine in a browser was wrong (2026-11-26).
+ *
+ * `30251` FLAC, `30250` Dolby, `30280` 192k, `30232` 132k, `30216` 64k.
+ */
 const qualityIds: Record<FoliumSourceAudioQuality, number[]> = {
     standard: [30216],
-    high: [30280, 30232],
-    ultra: [30250, 30280],
-    lossless: [30251, 30280],
-    hires: [30251, 30280],
+    high: [30280, 30232, 30216],
+    ultra: [30250, 30280, 30232, 30216],
+    lossless: [30251, 30280, 30232, 30216],
+    hires: [30251, 30280, 30232, 30216],
+};
+
+/** The level a track id really is, so the host records what plays rather than what was asked for. */
+const levelOfTrack = (id: number): FoliumSourceAudioQuality => {
+    if (id === 30251) return 'lossless';
+    if (id === 30250) return 'ultra';
+    if (id === 30280) return 'high';
+    return 'standard';
 };
 
 interface AudioTrack {
@@ -92,6 +106,13 @@ export interface BilibiliCapabilities {
 export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliRequest): BilibiliCapabilities => {
     const fail: Fail = (code, message, details) => env.error(code, message, details);
 
+    /**
+     * Who was signed in when the folder choice was made. A sign-in that brings a different account takes that choice
+     * away (its `fav:` ids belong to the other account); the same account signing in again keeps it — a session that
+     * ran out must not cost the listener 86 folders' worth of ticking (2026-11-26).
+     */
+    let signedInMid: string | null = null;
+
     /** The account, as `nav` answers it; null when nobody is signed in (the answer's `code` is -101 then). */
     const readAccount = async () => {
         const answer = await request('nav');
@@ -106,7 +127,14 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
             folderRowsCache = null;
             return null;
         }
-        return { id: String(data.mid), nickname: data.uname ?? '', avatarUrl: data.face, vipType: data.vipStatus };
+        const mid = String(data.mid);
+        if (signedInMid !== null && signedInMid !== mid) {
+            // 换了一个账号（没经过退出登录，例如上一个会话过期后换了人）：勾的收藏夹不属于这一个。
+            folderRowsCache = null;
+            env.folderFilter?.save({ enabled: false, selected: [], answered: false });
+        }
+        signedInMid = mid;
+        return { id: mid, nickname: data.uname ?? '', avatarUrl: data.face, vipType: data.vipStatus };
     };
 
     /**
@@ -146,6 +174,7 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
             pendingSignIns.clear();
             // 退出去之后可能是另一个账号：收藏夹列表要重新读，勾的收藏夹也是上一个账号的，不能留着。
             folderRowsCache = null;
+            signedInMid = null;
             env.folderFilter?.save({ enabled: false, selected: [], answered: false });
             await request('logout');
         },
@@ -172,9 +201,9 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
             switch (data.code ?? -1) {
                 case 0:
                     pendingSignIns.delete(key);
-                    // 换一个账号登录：上一个账号读来的收藏夹列表不能拿来回答这一个，勾选也要重新问一遍。
+                    // 换一个账号登录：上一个账号读来的收藏夹列表不能拿来回答这一个。勾选留着——同一个账号
+                    // 重新登录（会话过期最常见）不该让人重勾 86 个；真换了账号，下一次读账号会发现并清掉。
                     folderRowsCache = null;
-                    env.folderFilter?.save({ enabled: false, selected: [], answered: false });
                     return { state: 'confirmed' };
                 case 86090: return { state: 'scanned' };
                 case 86101: return { state: 'waiting' };
@@ -271,17 +300,32 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
     let warmingCovers = false;
 
     /**
-     * The folder has no cover to be had: remembered as `NO_COVER` so it is not asked for again on every account read —
-     * a folder with an empty `data.info.cover` answered the same way 86 times otherwise (measured 2026-11-25).
+     * The folder has no cover to be had: remembered as `-<when>` so it is not asked for again on every account read —
+     * a folder with an empty `data.info.cover` answered the same way 86 times otherwise (measured 2026-11-25). The
+     * `when` is kept so it is asked again after a while: a cover set on bilibili later would otherwise never show up.
      */
-    const NO_COVER = '-';
+    const NO_COVER_PREFIX = '-';
+    const NO_COVER_RETRY_MS = 14 * 24 * 60 * 60 * 1000;
+
+    /** When a "no cover" was recorded, or null for a real cover (and for nothing recorded). */
+    const noCoverAt = (value: string | undefined): number | null => (
+        value && value.startsWith(NO_COVER_PREFIX) ? (Number(value.slice(1)) || 0) : null
+    );
+
+    /** Whether this folder's cover should be asked for: never learned, or learned as missing long ago. */
+    const coverWanted = (id: string, known: Record<string, string>): boolean => {
+        const kept = known[id];
+        if (!kept) return true;
+        const at = noCoverAt(kept);
+        return at !== null && Date.now() - at >= NO_COVER_RETRY_MS;
+    };
 
     /** Warms the covers the cache does not have yet, slowly, after the account read has already been answered. */
     const warmFolderCovers = async (folders: FoliumSourceCollection[], known: Record<string, string>): Promise<void> => {
         if (warmingCovers) return;
         warmingCovers = true;
         try {
-            const missing = folders.filter(folder => !known[folder.id]).slice(0, FOLDER_COVER_WARM_PER_READ);
+            const missing = folders.filter(folder => coverWanted(folder.id, known)).slice(0, FOLDER_COVER_WARM_PER_READ);
             for (const folder of missing) {
                 let cover: string | null = null;
                 try {
@@ -291,7 +335,7 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
                     await new Promise<void>(resolve => { setTimeout(resolve, 400); });
                     continue;
                 }
-                known[folder.id] = cover ?? NO_COVER;
+                known[folder.id] = cover ?? `${NO_COVER_PREFIX}${Date.now()}`;
                 await rememberCover(folder.id, known[folder.id]);
                 await new Promise<void>(resolve => { setTimeout(resolve, 400); });
             }
@@ -399,7 +443,7 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
             const known = await readCachedCovers();
             for (const item of items) {
                 const kept = known[item.id];
-                if (!item.coverUrl && kept && kept !== NO_COVER) item.coverUrl = kept;
+                if (!item.coverUrl && kept && noCoverAt(kept) === null) item.coverUrl = kept;
             }
             void warmFolderCovers(folders, known);
             return { items, total: folders.length, hasMore: offset + limit < folders.length };
@@ -474,18 +518,25 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
         };
     };
 
-    /** The aid and cid a song plays with: from its own data where the folder list gave them, else from `view`. */
+    /**
+     * The aid and cid a song plays with. A plain `bvid` is the whole video, whose audio is its first part — and the
+     * folder list already handed that part's cid over (`ugc.first_cid`), so no `view` request is needed for it, however
+     * many parts the video has. `bvid:p<n>` names one part of a multi-P video (the shape the per-part songs will use):
+     * that one needs `view`, and falls back to the first part when the number is past the end.
+     */
     const idsOf = async (song: FoliumSourceSong): Promise<{ avid?: number; cid?: number }> => {
         const known = song.data as unknown as BilibiliSongData | undefined;
+        const partMatch = /^(.*):p(\d+)$/.exec(song.id);
+        const bvid = partMatch ? partMatch[1] : song.id;
+        const part = partMatch ? Math.max(1, Number(partMatch[2])) : 1;
         let avid = known?.avid;
         let cid = known?.cid;
-        const pages = known?.pages ?? 1;
-        if (!avid || !cid || pages > 1) {
-            const view = unwrapOrNull<ViewData>(await request('view', { bvid: song.id }), fail, 'view');
-            if (!view) return {};
-            avid = view.aid ?? avid;
-            cid = view.pages?.[0]?.cid ?? view.cid ?? cid;
-        }
+        if (part === 1 && avid && cid) return { avid, cid };
+        const view = unwrapOrNull<ViewData>(await request('view', { bvid }), fail, 'view');
+        if (!view) return { avid, cid };
+        avid = view.aid ?? avid;
+        const pages = view.pages ?? [];
+        cid = (pages[part - 1] ?? pages[0])?.cid ?? view.cid ?? cid;
         return { avid, cid };
     };
 
@@ -587,7 +638,8 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
                     // A token means the main entry must read it (upos CDNs refuse a request without a Referer).
                     url: hit.proxy ? `folia-mod://${env.modId}/_media/audio/${hit.proxy}` : hit.url,
                     expiresAt: expiryOf(hit.url),
-                    quality: quality === 'high' && hit.id !== 30280 ? 'standard' : quality,
+                    // 实际播的是哪一档就报哪一档：降档兜底之后不能还说成 high。
+                    quality: levelOfTrack(hit.id),
                 };
             }
             throw env.error('not-playable', env.translate('error.notPlayable'));

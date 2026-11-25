@@ -90,6 +90,41 @@ describe('the step offered after a sign-in', () => {
     });
 });
 
+describe('signing in again', () => {
+    const withAccount = () => {
+        const saved: Array<Record<string, unknown>> = [];
+        let mid = 42;
+        const env = {
+            ...(createEnv() as unknown as Record<string, unknown>),
+            folderFilter: {
+                read: () => ({ enabled: true, selected: ['fav:111'], answered: true }),
+                save: (patch: Record<string, unknown>) => { saved.push(patch); },
+                open: () => undefined,
+            },
+        } as unknown as BilibiliCoreEnv;
+        const request: BilibiliRequest = async (operation) => {
+            if (operation === 'nav') return { code: 0, data: { isLogin: true, mid, uname: 'someone' } };
+            return { code: 0, data: null };
+        };
+        return { capabilities: createCapabilities(env, request), saved, setMid: (value: number) => { mid = value; } };
+    };
+
+    it('keeps the choice when the same account signs in again', async () => {
+        const { capabilities, saved } = withAccount();
+        await capabilities.auth.getLoginStatus!();
+        await capabilities.auth.getLoginStatus!();
+        // 会话过期后重新登录同一个人：不该把 几十个收藏夹的勾选清掉。
+        expect(saved).toEqual([]);
+    });
+
+    it('drops the choice when a different account turns up without a sign-out', async () => {
+        const { capabilities, saved, setMid } = withAccount();
+        await capabilities.auth.getLoginStatus!();
+        setMid(99);
+        await capabilities.auth.getLoginStatus!();
+        expect(saved[0]).toEqual({ enabled: false, selected: [], answered: false });
+    });
+});
 describe('the folder list the checklist reads', () => {
     const countingRequest = () => {
         const calls: string[] = [];

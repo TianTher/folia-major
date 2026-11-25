@@ -11,6 +11,8 @@ const prefersOwnWordByWordMock = vi.hoisted(() => vi.fn(() => false));
 const loadLyricsStateMock = vi.hoisted(() => vi.fn());
 const saveLyricsStateMock = vi.hoisted(() => vi.fn());
 const isUrlValidMock = vi.hoisted(() => vi.fn(() => true));
+const saveToCacheMock = vi.hoisted(() => vi.fn());
+const itemTraitsMock = vi.hoisted(() => vi.fn(() => ({ kind: 'song', lyrics: 'match', likable: true, reported: true, route: 'audio' })));
 const updatePrefetchedAudioUrlMock = vi.hoisted(() => vi.fn());
 const lyricSettings = vi.hoisted(() => ({
     autoUseBestLyric: true,
@@ -38,6 +40,7 @@ vi.mock('@/services/onlineMusic/omni', () => ({
 }));
 
 afterEach(() => {
+    itemTraitsMock.mockReturnValue({ kind: 'song', lyrics: 'match', likable: true, reported: true, route: 'audio' });
     prefersOwnWordByWordMock.mockReturnValue(false);
     lyricSettings.preferredAlternativeLyricSource = 'qq';
     lyricSettings.keepProviderWordTiming = true;
@@ -68,7 +71,12 @@ vi.mock('@/services/prefetchService', () => ({
 }));
 
 vi.mock('@/services/db', () => ({
-    saveToCache: vi.fn(),
+    saveToCache: saveToCacheMock,
+}));
+
+// 只用自己的歌词的条目（B 站视频）：默认按一首歌的规则，用例里单独改。
+vi.mock('@/services/onlineMusic/itemTraits', () => ({
+    itemTraits: itemTraitsMock,
 }));
 
 vi.mock('@/utils/blobGuards', () => ({
@@ -386,6 +394,52 @@ describe('online audio source failures', () => {
     });
 });
 
+describe('lyrics only its source has (a video with CC subtitles)', () => {
+    const ownItem = { ...song, kind: 'video', itemKind: 'video' } as SongResult;
+    const lines = [{ startTime: 0, endTime: 4, fullText: 'words', words: [] }];
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        itemTraitsMock.mockReturnValue({ kind: 'video', lyrics: 'own', likable: false, reported: false, route: 'audio' });
+        loadLyricsStateMock.mockResolvedValue(null);
+        lyricSettings.autoUseBestLyric = true;
+    });
+    afterEach(() => {
+        lyricSettings.autoUseBestLyric = true;
+    });
+
+    it('writes the entry with the mark, so the next play can use it', async () => {
+        songCacheMock.mockResolvedValue(null);
+        lyricsMock.mockResolvedValue({ lyrics: { lines, isWordByWord: false }, isPureMusic: false });
+
+        await loadOnlineSongLyrics(ownItem, null, null, { isCurrent: () => true, onLyrics: vi.fn(), onDone: vi.fn() });
+
+        expect(lyricsMock).toHaveBeenCalledOnce();
+        const lyricSave = saveToCacheMock.mock.calls.map(call => call[1]).find(saved => Boolean(saved && Array.isArray(saved.lines)));
+        expect(lyricSave).toMatchObject({ ownSourceLyrics: true });
+    });
+
+    it('plays a marked entry without asking the source again', async () => {
+        songCacheMock.mockResolvedValue({ lines, isWordByWord: false, ownSourceLyrics: true });
+        const onLyrics = vi.fn();
+
+        await loadOnlineSongLyrics(ownItem, null, null, { isCurrent: () => true, onLyrics, onDone: vi.fn() });
+
+        // 带记号 = 确实是它自己的词：一次数据库读取就够了，不再问平台（这正是"每次播放都重新请求"的修法）。
+        expect(lyricsMock).not.toHaveBeenCalled();
+        expect(onLyrics).toHaveBeenCalled();
+    });
+
+    it('does not trust an unmarked entry, which may be another song’s words', async () => {
+        songCacheMock.mockResolvedValue({ lines, isWordByWord: false });
+        lyricsMock.mockResolvedValue({ lyrics: { lines, isWordByWord: false }, isPureMusic: false });
+        const onLyrics = vi.fn();
+
+        await loadOnlineSongLyrics(ownItem, null, null, { isCurrent: () => true, onLyrics, onDone: vi.fn() });
+
+        expect(lyricsMock).toHaveBeenCalledOnce();
+    });
+});
 describe('online QQ lyric candidate plumbing', () => {
     beforeEach(() => {
         vi.clearAllMocks();

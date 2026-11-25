@@ -76,8 +76,11 @@ export default function activate(api: FoliumSourceMainApi): void {
         setCookies: string[];
     }
 
-    const fetchJson = async (url: string): Promise<Fetched> => {
-        const response = await api.net.fetch(url, { headers: headersFor(), redirect: 'follow' });
+    const fetchJson = async (url: string, options: { withCookie?: boolean } = {}): Promise<Fetched> => {
+        const headers = headersFor();
+        // 公开的静态文件（字幕）不带会话 cookie：它不需要，也不该把它交到别的域名手里。
+        if (options.withCookie === false) delete headers.Cookie;
+        const response = await api.net.fetch(url, { headers, redirect: 'follow' });
         const setCookies = typeof (response.headers as { getSetCookie?: () => string[] }).getSetCookie === 'function'
             ? (response.headers as { getSetCookie: () => string[] }).getSetCookie()
             : [];
@@ -254,7 +257,15 @@ export default function activate(api: FoliumSourceMainApi): void {
             const asked = String(params.url ?? '');
             if (!asked) return { code: -400, message: 'subtitle: no url' };
             const target = asked.startsWith('//') ? `https:${asked}` : asked;
-            const { status, text } = await fetchJson(target);
+            // 字幕是公开的静态文件，地址来自平台的应答：只认 hdslb 的域名，且不带会话 cookie。
+            let parsed: URL;
+            try {
+                parsed = new URL(target);
+            } catch {
+                return { code: -400, message: 'subtitle: not a url' };
+            }
+            if (!/(^|\.)hdslb\.com$/i.test(parsed.hostname)) return { code: -400, message: 'subtitle: not a subtitle host' };
+            const { status, text } = await fetchJson(target, { withCookie: false });
             try {
                 return { code: 0, data: JSON.parse(text) as unknown };
             } catch {

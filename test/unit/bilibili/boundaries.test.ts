@@ -110,6 +110,49 @@ describe('playing', () => {
         expect(audio?.expiresAt).toBe(1700000000000);
     });
 
+    it('plays the first part of a multi-P video from the cid the list gave, without asking view', async () => {
+        // 多 P 视频的"整条"就是它的第一 P，收藏夹列表已经把 first_cid 给了；以前这里还会白跑一次 view。
+        const asked: string[] = [];
+        const multiPart = {
+            id: 'BV1multi',
+            title: 'MULTI',
+            artists: [{ id: '1', name: 'UP', ref: false }],
+            kind: 'video',
+            data: { cid: 700000005, pages: 3, avid: 900000005 },
+        } as never;
+        const request: BilibiliRequest = async (operation) => {
+            asked.push(operation);
+            return { code: 0, data: { dash: { audio: [{ id: 30280, baseUrl: 'https://cdn/m' }] } } };
+        };
+        const audio = await createCapabilities(createEnv(), request).playback.getAudioSource(multiPart, 'high');
+        expect(asked).toEqual(['playurl']);
+        expect(audio?.url).toBe('https://cdn/m');
+    });
+
+    it('plays the part a `bvid:p<n>` id names, and the first one when the number is past the end', async () => {
+        const asked: Array<Record<string, unknown> | undefined> = [];
+        const request: BilibiliRequest = async (operation, params) => {
+            asked.push(params);
+            if (operation === 'view') {
+                return {
+                    code: 0,
+                    data: { bvid: 'BV1multi', aid: 900000005, pages: [{ cid: 111 }, { cid: 222 }, { cid: 333 }] },
+                };
+            }
+            return { code: 0, data: { dash: { audio: [{ id: 30280, baseUrl: 'https://cdn/m' }] } } };
+        };
+        const partSong = (id: string) => ({
+            id, title: 'PART', artists: [{ id: '1', name: 'UP', ref: false }], kind: 'video', data: {},
+        }) as never;
+
+        await createCapabilities(createEnv(), request).playback.getAudioSource(partSong('BV1multi:p2'), 'high');
+        expect(asked[0]).toEqual({ bvid: 'BV1multi' });
+
+        // 越界的 P 号回退到第一 P，不抛错。
+        const capabilities = createCapabilities(createEnv(), request);
+        const audio = await capabilities.playback.getAudioSource(partSong('BV1multi:p9'), 'high');
+        expect(audio?.url).toBe('https://cdn/m');
+    });
     it('falls back to a lower track and says which one it really got', async () => {
         const request: BilibiliRequest = async () => ({
             code: 0,
@@ -119,6 +162,25 @@ describe('playing', () => {
         expect(audio?.quality).toBe('standard');
     });
 
+    it('plays a video that only carries the low track when high was asked for', async () => {
+        // 只有 30216 的老视频：以前 high 档找不到 30280/30232 就报"没有可用的音轨"，明明能播。
+        const request: BilibiliRequest = async () => ({
+            code: 0,
+            data: { dash: { audio: [{ id: 30216, baseUrl: 'https://cdn/low' }] } },
+        });
+        const audio = await createCapabilities(createEnv(), request).playback.getAudioSource(song, 'high');
+        expect(audio?.url).toBe('https://cdn/low');
+        expect(audio?.quality).toBe('standard');
+    });
+
+    it('reports the level of the track it really plays', async () => {
+        const request: BilibiliRequest = async () => ({
+            code: 0,
+            data: { dash: { audio: [{ id: 30280, baseUrl: 'https://cdn/high' }] } },
+        });
+        const audio = await createCapabilities(createEnv(), request).playback.getAudioSource(song, 'high');
+        expect(audio?.quality).toBe('high');
+    });
     it('says it cannot play rather than answering an address that is not there', async () => {
         const request: BilibiliRequest = async () => ({ code: 0, data: { dash: { audio: [] } } });
         await expect(createCapabilities(createEnv(), request).playback.getAudioSource(song, 'high'))

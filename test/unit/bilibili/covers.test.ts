@@ -81,13 +81,38 @@ describe('folder covers', () => {
         const first = await capabilities.library.getUserPlaylists('42', 50, 0);
         expect(first.items[0]?.coverUrl).toBeUndefined();
         await new Promise(resolve => setTimeout(resolve, 80));
-        expect(kept['fav:111']).toBe('-');
+        expect(kept['fav:111']?.startsWith('-')).toBe(true);
 
         // 第二次读账号：这一把已经记成"没有封面"，不该再为它请求一次。
         const before = folderPages;
         await capabilities.library.getUserPlaylists('42', 50, 0);
         await new Promise(resolve => setTimeout(resolve, 80));
         expect(folderPages).toBe(before);
+    });
+    it('asks again once a "no cover" record is old, so a cover set later shows up', async () => {
+        const stale = `-${Date.now() - 15 * 24 * 60 * 60 * 1000}`;
+        const kept: Record<string, string> = { 'fav:111': stale };
+        let pages = 0;
+        const request: BilibiliRequest = async (operation, params) => {
+            if (operation === 'nav') return { code: 0, data: { mid: 42 } };
+            if (operation === 'favFolders') {
+                return { code: 0, data: { count: 1, list: [{ id: 111, title: 'LATE', attr: 1, media_count: 1, cover: '' }] } };
+            }
+            if (operation === 'coversGet') return { code: 0, data: { ...kept } };
+            if (operation === 'favItems') {
+                pages += 1;
+                return { code: 0, data: { info: { media_count: 1, cover: 'http://i0.hdslb.com/late.jpg' }, medias: [], has_more: false } };
+            }
+            if (operation === 'coversPut') {
+                kept[String(params?.id)] = String(params?.cover);
+                return { code: 0, data: null };
+            }
+            return { code: 0, data: null };
+        };
+        await createCapabilities(createEnv(), request).library.getUserPlaylists('42', 50, 0);
+        await new Promise(resolve => setTimeout(resolve, 80));
+        expect(pages).toBe(1);
+        expect(kept['fav:111']).toContain('@400w_400h');
     });
     it('learns a folder’s cover from the page it opens, without a request of its own', async () => {
         const kept: Record<string, string> = {};

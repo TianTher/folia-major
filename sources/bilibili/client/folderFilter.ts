@@ -202,6 +202,7 @@ export const createFolderFilter = (folium: FoliumClientApi): FolderFilter => {
         read: readFilter,
         save: saveState,
         open: () => folium.ui.openSettings?.('mods'),
+        notifySaved: () => folium.ui.toast(text('filter.saved'), { type: 'success' }),
     };
 
     return {

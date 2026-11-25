@@ -203,7 +203,14 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
             }
             const view = await folderSetupView();
             // 全选/全不选/完成都会改「歌单里有什么」：宿主得把这副账号重新读一遍才看得见。
-            if (stepId === 'choices') view.reload = true;
+            if (stepId === 'choices') {
+                view.reload = true;
+                if (actionId === 'done') {
+                    // 做完这一遍：报一句成功，收起清单回到账号那一幅。
+                    view.close = true;
+                    filter.notifySaved?.();
+                }
+            }
             return view;
         },
     };

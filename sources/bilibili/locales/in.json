@@ -31,5 +31,6 @@
     "filter.off":  "Uncheck",
     "filter.finish":  "Done",
     "filter.count":  "{{n}} videos",
-    "filter.folder":  "{{name}}"
+    "filter.folder":  "{{name}}",
+    "filter.saved":  "Folders saved"
 }

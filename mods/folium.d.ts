@@ -3881,6 +3881,8 @@ export interface FoliumSourceSetupView {
     choices?: FoliumSourceSetupChoices;
     /** Folium 2.3: the account's own data changed — read the account again before drawing it. */
     reload?: boolean;
+    /** Folium 2.3: the user is done with the list — close it and go back to the account page. */
+    close?: boolean;
     /** Every step is done. */
     complete: boolean;
     /** What the source says to the action just done. */

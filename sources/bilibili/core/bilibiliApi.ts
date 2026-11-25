@@ -60,6 +60,8 @@ export interface BilibiliFolderFilterApi {
     save(patch: Partial<BilibiliFolderFilter>): void;
     /** Opens the folder filter's page (the checklist). */
     open(): void;
+    /** Says it worked, as the app's own status message. */
+    notifySaved?(): void;
 }
 
 /** What createSource is handed: the desktop client's env, and on the web the web build's pieces. */

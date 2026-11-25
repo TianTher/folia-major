@@ -656,6 +656,8 @@ export interface ProviderSetupView {
     choices?: ProviderSetupChoices;
     /** 账号自己的数据变了：读完再画（清单上的勾选会决定歌单里有什么）。 */
     reload?: boolean;
+    /** 用户做完了：收起清单，回到账号那一幅。 */
+    close?: boolean;
     /** 每一步都做完了：可以结束。 */
     complete: boolean;
     /** 平台对刚做的那一个操作说的话（i18n key）；没有可说的就不给。 */

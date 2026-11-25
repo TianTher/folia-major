@@ -720,6 +720,8 @@ export const createProviderAccountController = (deps: LibraryAccountControllerDe
                     log('warn', 'setup:reload-error', { providerId, ...describeLoginError(error) });
                 }
             }
+            // 平台说这一次就做完了：收起清单，回到账号那一幅。
+            if (view.close === true && !disposed && setup && seq === setupSeq) batch(() => { closeSetup(); });
             return { status: 'done' };
         } catch (error) {
             log('warn', 'setup:action-error', { providerId, stepId, actionId, ...describeLoginError(error) });

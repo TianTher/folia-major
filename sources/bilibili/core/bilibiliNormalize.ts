@@ -98,9 +98,11 @@ export const toSong = (media: BilibiliMedia): FoliumSourceSong => {
     };
     const cover = coverAt(media.cover, 400);
     const uploader = media.upper?.name ?? '';
+    const id = bvid || String(media.id);
+    const parts = typeof media.page === 'number' ? media.page : 1;
     return {
-        id: bvid || String(media.id),
-        title: media.title?.trim() || (bvid || String(media.id)),
+        id,
+        title: media.title?.trim() || id,
         artists: media.upper && media.upper.name
             ? [{ id: String(media.upper.mid ?? ''), name: media.upper.name, ref: false }]
             : [{ id: 'bilibili', name: 'bilibili', ref: false }],
@@ -110,6 +112,8 @@ export const toSong = (media: BilibiliMedia): FoliumSourceSong => {
         durationMs: typeof media.duration === 'number' ? media.duration * 1000 : undefined,
         coverUrl: cover,
         kind: 'video',
+        // 多 P：这一行代表整条视频（播它的第一 P），并告诉宿主它下面还有几个 P —— 展开那一层由宿主画。
+        ...(parts > 1 ? { group: { id, title: media.title?.trim() || id, total: parts, ...(cover ? { coverUrl: cover } : {}) } } : {}),
         data: data as unknown as Record<string, never>,
     };
 };

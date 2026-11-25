@@ -1,5 +1,5 @@
 {
-    "version": { "major": 2, "minor": 2 },
+    "version": { "major": 2, "minor": 3 },
     "foliumOneVersion": { "major": 1, "minor": 10 },
     "manifestVersions": [1, 2],
     "sourceCapabilities": {

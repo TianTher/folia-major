@@ -4,6 +4,7 @@ import { Disc, NotebookPen, Pause, Play, Plus, Star, X } from 'lucide-react';
 import type { SongResult, UnifiedSong } from '../../../../types';
 import { getSizedCoverUrl } from '../../../../utils/coverUrl';
 import { canResolveSongCatalogRef } from '../../../../services/onlineMusic/catalogRefs';
+import { getSongGroupLabel } from '../../../../services/onlineMusic/songMetadata';
 import { resolveTrackArtistTargetId } from '../../../core/shared/trackLinks';
 import type { GridPlaybackMark } from './useGridStayPlayback';
 
@@ -131,6 +132,7 @@ export const PolaroidCardArtists: React.FC<{
     if (!(mode === 'tracks' && onSelectArtist && item.rawTrack?.artists)) {
         return <>{item.description}</>;
     }
+    const groupLabel = getSongGroupLabel(item.rawTrack);
 
     return (
         <span className="flex gap-1 flex-wrap">
@@ -162,6 +164,10 @@ export const PolaroidCardArtists: React.FC<{
                     </span>
                 );
             })}
+            {groupLabel && (
+                // 多 P：这一行代表整条视频，歌手后面说它下面有几个 P（展开那一层由宿主画）。
+                <span className="opacity-60">· {groupLabel}</span>
+            )}
         </span>
     );
 };

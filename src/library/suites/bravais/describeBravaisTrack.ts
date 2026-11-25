@@ -1,6 +1,6 @@
 import type { TFunction } from 'i18next';
 import type { SongResult } from '../../../types';
-import { getSongAlbumLabel, getSongArtistLabel, getSongCoverUrl, getSongDurationMs } from '../../../services/onlineMusic/songMetadata';
+import { getSongAlbumLabel, getSongArtistLabel, getSongCoverUrl, getSongDurationMs, getSongGroupLabel } from '../../../services/onlineMusic/songMetadata';
 import { getTrackSourceLabel, getTrackSwappedFromLabel, getTrackUnplayableLabel, isTrackShownUnplayable, isTrackSourceUnavailable, TRACK_SWAPPED_MARK } from '../../../services/foliaPlaylist/trackSourceState';
 import { getPlaybackSongKey } from '../../../utils/appPlaybackGuards';
 import type { TrackDescription } from './bravaisProjection';
@@ -14,7 +14,8 @@ export const describeBravaisTrack = (track: SongResult): TrackDescription => {
     const label = getSongArtistLabel(track);
     return {
         artists: names.some(Boolean) ? names : (label ? [label] : []),
-        album: getSongAlbumLabel(track) || track.album?.name || '',
+        // 多 P：整条视频那一行会带上它下面有几个 P。
+        album: [getSongAlbumLabel(track) || track.album?.name || '', getSongGroupLabel(track)].filter(Boolean).join(' · '),
         coverUrl: getSongCoverUrl(track) || track.album?.coverUrl,
         durationMs: getSongDurationMs(track) || track.durationMs || 0,
         playbackKey: getPlaybackSongKey(track),

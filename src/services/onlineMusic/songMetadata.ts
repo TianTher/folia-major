@@ -43,6 +43,14 @@ export const getSongCoverUrl = (song: SongResult | null | undefined, providerId?
     song ? getProviderSongMetadata(song, providerId).coverUrl : undefined
 );
 
+/**
+ * How many songs the row this one belongs to holds, as the library says it ("12P"): a video and its parts are one row
+ * that opens (Folium 2.3 `songGroup`). '' for a song that is a row of its own.
+ */
+export const getSongGroupLabel = (song: SongResult | null | undefined): string => {
+    const total = (song as { songGroup?: { total?: number } } | null | undefined)?.songGroup?.total;
+    return typeof total === 'number' && total > 1 ? `${total}P` : '';
+};
 export const getProviderSongPageUrl = (song: SongResult | null | undefined, providerId?: OnlineProviderId): string | null => {
     if (!song) return null;
     const sourceRef = getPlaybackSourceRef(song);

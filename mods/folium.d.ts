@@ -16,7 +16,7 @@
 // 里面的每个文件都算模组的内容），路径改成拷过去的位置。这个文件只给编辑器看，宿主不读它。
 
 /** The Folium version this host implements; mods read it at runtime as `folium.host.folium`. */
-export declare const FOLIUM_VERSION: { readonly major: 2; readonly minor: 2 };
+export declare const FOLIUM_VERSION: { readonly major: 2; readonly minor: 3 };
 
 /** `modid:name`, like a Forge ResourceLocation. The mod id part is added by the host. */
 export type FoliumId = string;
@@ -3341,11 +3341,29 @@ export interface FoliumSourceSong {
     /** Loudness values of the song. */
     replayGain?: FoliumSourceReplayGain;
     /**
+     * Folium 2.3: the row this song belongs to when the source hands out several songs for one thing the listener sees
+     * as one — the parts of a video, say. Rows of the same `group.id` are drawn as that one thing, which opens to show
+     * them (a bilibili video's P list). Left out: the song is a row of its own, as before.
+     */
+    group?: FoliumSourceSongGroup;
+    /**
      * The source's own data of the song, handed back with it. Plain JSON of at most 16 KB as JSON text: the host keeps
      * it with the song (queue, history). Data that is not JSON, or larger, is not kept at all (one warning a source in
      * the log), and the song comes back without it. Functions in it are left out, as JSON does.
      */
     data?: Record<string, FoliumJsonValue>;
+}
+
+/** Folium 2.3: what a song says about the row it shares with others (`FoliumSourceSong.group`). */
+export interface FoliumSourceSongGroup {
+    /** The row's id at the source: the thing the songs belong to (a video's `bvid`). */
+    id: string;
+    /** The row's title, when it is not the first song's (a video's title, without the part). */
+    title?: string;
+    /** The row's cover; the first song's when left out. */
+    coverUrl?: string;
+    /** How many songs the row has, so the host can say "12 parts" before they are read. */
+    total?: number;
 }
 
 /** Folium 2: an account at a source. */

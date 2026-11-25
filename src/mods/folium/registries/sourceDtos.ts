@@ -132,6 +132,21 @@ export const toHostSong = (providerId: OnlineProviderId, song: FoliumSourceSong)
     const providerData: Record<string, JsonValue> | undefined = lyricIds
         ? { ...(data ?? {}), [LYRIC_IDS_DATA_KEY]: lyricIds }
         : data;
+    // Folium 2.3: the row this song shares with others (a video's parts). Kept on the song; the library
+    // draws songs of one group as that row.
+    const group = record(raw.group);
+    const groupId = group ? optionalText(group.id) : undefined;
+    const groupTitle = group ? optionalText(group.title) : undefined;
+    const groupCover = group ? optionalText(group.coverUrl) : undefined;
+    const groupTotal = group ? finite(group.total) : undefined;
+    const songGroup = groupId
+        ? {
+            id: groupId,
+            ...(groupTitle ? { title: groupTitle } : {}),
+            ...(groupCover ? { coverUrl: groupCover } : {}),
+            ...(groupTotal !== undefined ? { total: groupTotal } : {}),
+        }
+        : undefined;
     const row = record(raw.row);
     const rowId = row ? optionalText(row.id) : undefined;
     const listenCount = row ? finite(row.listenCount) : undefined;
@@ -161,6 +176,7 @@ export const toHostSong = (providerId: OnlineProviderId, song: FoliumSourceSong)
         ...(replayGain ? { replayGain: { ...replayGain } } : {}),
         ...topIds,
         ...(rowId ? { collectionRowId: rowId } : {}),
+        ...(songGroup ? { songGroup } : {}),
         ...(listenCount !== undefined ? { listenCount } : {}),
         sourceRef: {
             kind: 'online',

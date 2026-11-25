@@ -1,5 +1,5 @@
 import { getPlaybackSongKey } from '../../../../utils/appPlaybackGuards';
-import { getSongCoverUrl } from '../../../../services/onlineMusic/songMetadata';
+import { getSongCoverUrl, getSongGroupLabel } from '../../../../services/onlineMusic/songMetadata';
 import { formatSongName } from '../../../../utils/songNameFormatter';
 import type { GridItem } from '../shared/polaroidCardParts';
 import type { SongResult } from '../../../../types';
@@ -31,7 +31,8 @@ export const shapeGridItem = (
     ].filter(Boolean).join(' '),
     coverUrl: getSongCoverUrl(track),
     subtitle: String(index + 1).padStart(2, '0'),
-    description: track.artists?.map(artist => artist.name).join(', '),
+    // 多 P：这一行代表整条视频，副标题里说它下面有几个 P（展开那一层由宿主画）。
+    description: [track.artists?.map(artist => artist.name).join(', '), getSongGroupLabel(track)].filter(Boolean).join(' · '),
     rawTrack: track,
     rawTrackIndex: index,
 });

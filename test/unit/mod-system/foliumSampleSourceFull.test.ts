@@ -115,7 +115,7 @@ describe('sample-source-full through omni', () => {
     });
 
     it('registers both sources, with names from its own locale files and flags from its capabilities', () => {
-        expect(api.host.folium).toEqual({ major: 2, minor: 2 });
+        expect(api.host.folium).toEqual({ major: 2, minor: 3 });
         const summary = omni.getProviderSummaries().find((entry) => entry.providerId === SOURCE);
         expect(summary).toBeDefined();
         expect(i18n.t(summary!.shortNameKey!, { lng: 'zh-CN' })).toBe('契约测试');

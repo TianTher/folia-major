@@ -1626,6 +1626,13 @@ export type {
   LocalSongTitleOrigin,
 } from './types/localLibrary';
 
+// A row several songs belong to (a video and its parts): the library draws them as one row that opens.
+export interface SongGroup {
+  id: string;
+  title?: string;
+  coverUrl?: string;
+  total?: number;
+}
 // Extend SongResult to support local files and Navidrome files
 export interface UnifiedSong extends SongResult {
   sourceRef: PlaybackSourceRef;
@@ -1638,6 +1645,9 @@ export interface UnifiedSong extends SongResult {
   // In a Folia playlist saved from a platform playlist: the key of the song this row stood for before
   // it was swapped for another source's copy (the entry's originalKey). Belongs to the row as well.
   foliaOriginalKey?: string;
+  // The row this song shares with others the listener sees as one thing (a video's parts, Folium 2.3
+  // `FoliumSourceSongGroup`): the library draws them as that one row, which opens to show them.
+  songGroup?: SongGroup;
   isLocal?: boolean;
   localRef?: import('./types/localLibrary').LocalSongReference;
   isNavidrome?: boolean;

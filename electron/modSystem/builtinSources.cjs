@@ -119,7 +119,7 @@ const BUILTIN_SOURCE_TABLE = Object.freeze({
     // `bilibili_session` (written by the mod's main entry through `api.seal`); nothing from before it was a mod.
     bilibili: Object.freeze({
         sources: ['bilibili'],
-        storeKeys: ['bilibili_session', 'bilibili_covers', 'bilibili_filter'],
+        storeKeys: ['bilibili_session', 'bilibili_covers'],
         partitions: [],
         userDataDirs: [],
         native: [],

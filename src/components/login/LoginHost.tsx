@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-
 import { useTranslation } from 'react-i18next';
 import type { LibraryAccountController, LibraryAccountSnapshot, LibraryLoginSessionSnapshot } from '../../library/core/account/account.contract';
 import {

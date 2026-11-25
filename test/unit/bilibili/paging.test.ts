@@ -75,4 +75,20 @@ describe('a folder read by offset', () => {
         expect(past.items).toEqual([]);
         expect(past.hasMore).toBe(false);
     });
+
+    it('keeps reading when a whole page was dropped, instead of answering an empty list', async () => {
+        // 一整页都是失效视频：宿主把"空且还有更多"当成源提前说完了，会报错，歌单先空一次。
+        const pages: number[] = [];
+        const request: BilibiliRequest = async (operation, params) => {
+            if (operation !== 'favItems') return { code: 0, data: null };
+            const page = Number(params?.pn ?? 1);
+            pages.push(page);
+            if (page === 1) return { code: 0, data: { medias: Array.from({ length: 40 }, (_, i) => media(700 + i, true)), has_more: true, info: { media_count: 41 } } };
+            return { code: 0, data: { medias: [media(900)], has_more: false, info: { media_count: 41 } } };
+        };
+        const answer = await createCapabilities(env, request).catalog.getPlaylistTracks!('fav:1', 40, 0);
+        expect(pages).toEqual([1, 2]);
+        expect(answer.items).toHaveLength(1);
+        expect((answer.items[0] as { id: string }).id).toBe('BV900');
+    });
 });

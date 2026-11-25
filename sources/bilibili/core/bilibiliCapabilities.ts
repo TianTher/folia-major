@@ -8,7 +8,6 @@ import type {
     FoliumSourceLibrary,
     FoliumSourceLoginState,
     FoliumSourceLyrics,
-    FoliumSourceSetupStep,
     FoliumSourceSetupView,
     FoliumSourcePage,
     FoliumSourceSong,
@@ -138,6 +137,8 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
         },
         async logout() {
             pendingSignIns.clear();
+            // 退出去之后可能是另一个账号：收藏夹列表要重新读。
+            folderRowsCache = null;
             await request('logout');
         },
         getLoginTexts() {
@@ -160,9 +161,11 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
             const data = unwrap<{ code?: number; message?: string }>(
                 await request('qrPoll', { qrcode_key: key }), fail, 'qrPoll',
             );
-            switch (data.code) {
+            switch (data.code ?? -1) {
                 case 0:
                     pendingSignIns.delete(key);
+                    // 换一个账号登录：上一个账号读来的收藏夹列表不能拿来回答这一个。
+                    folderRowsCache = null;
                     return { state: 'confirmed' };
                 case 86090: return { state: 'scanned' };
                 case 86101: return { state: 'waiting' };
@@ -172,8 +175,9 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
                 default: return { state: 'error', message: data.message };
             }
         },
-        async cancelLogin(key) {
+        cancelLogin(key) {
             pendingSignIns.delete(key);
+            return Promise.resolve();
         },
         async checkAfterLogin() {
             return env.folderFilter?.read().answered ? null : await folderSetupView();
@@ -218,36 +222,10 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
     /**
      * A folder's cover is not in the folder list: `created/list-all` answered an empty `cover` on all 86 folders of a
      * real account. It is in the folder's own first page (`resource/list`'s `data.info.cover`) — where bilibili's own
-     * pages read it from. One small request a folder, kept in the page store, and only for the folders the host is
-     * drawing right now: never the whole library at once.
+     * pages read it from. One small request a folder, kept in the main entry's cache, and only for the folders the
+     * listener chose: never the whole library at once, and never twice at the same time.
      */
-    const FOLDER_COVER_BUDGET = 20;
-    /** How long the read may spend on covers before answering without them. */
-    const FOLDER_COVER_DEADLINE_MS = 1500;
 
-    /** Kept for this run; the page store is a convenience, not something the fill can depend on. */
-    const coversThisRun = new Map<string, string>();
-
-    const readFolderCover = (key: string): string | null => {
-        try {
-            const kept = env.pageStore('bilibili').get(key);
-            if (kept) return kept;
-        } catch {
-            // No page store in this context: the map is enough.
-        }
-        return coversThisRun.get(key) ?? null;
-    };
-
-    const keepFolderCover = (key: string, cover: string): void => {
-        coversThisRun.set(key, cover);
-        try {
-            env.pageStore('bilibili').set(key, cover);
-        } catch {
-            // The same.
-        }
-    };
-
-    /**
     /**
      * Folder covers, cheaply. The folder list answers an empty `cover` for every folder; the real one is in that
      * folder's own page (`resource/list` → `data.info.cover`), one request a folder. Asking for 86 of them whenever the
@@ -260,7 +238,6 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
      */
     const FOLDER_COVER_WARM_PER_READ = 10;
 
-    const coversKey = 'bilibili_covers';
 
     const readCachedCovers = async (): Promise<Record<string, string>> => {
         try {
@@ -287,23 +264,26 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
         return coverAt(page?.info?.cover, 400) ?? null;
     };
 
+    /** One warming run at a time: two account reads at once would ask for the same folder twice. */
+    let warmingCovers = false;
+
     /** Warms the covers the cache does not have yet, slowly, after the account read has already been answered. */
     const warmFolderCovers = async (folders: FoliumSourceCollection[], known: Record<string, string>): Promise<void> => {
-        const missing = folders.filter(folder => !known[folder.id]).slice(0, FOLDER_COVER_WARM_PER_READ);
-        for (const folder of missing) {
-            const cover = await coverOfFolder(mediaIdOfFolder(folder.id));
-            if (cover) {
-                known[folder.id] = cover;
-                await rememberCover(folder.id, cover);
+        if (warmingCovers) return;
+        warmingCovers = true;
+        try {
+            const missing = folders.filter(folder => !known[folder.id]).slice(0, FOLDER_COVER_WARM_PER_READ);
+            for (const folder of missing) {
+                const cover = await coverOfFolder(mediaIdOfFolder(folder.id));
+                if (cover) {
+                    known[folder.id] = cover;
+                    await rememberCover(folder.id, cover);
+                }
+                await new Promise<void>(resolve => { setTimeout(resolve, 400); });
             }
-            await new Promise<void>(resolve => { setTimeout(resolve, 400); });
+        } finally {
+            warmingCovers = false;
         }
-    };
-    const withDeadline = async <T>(work: Promise<T>, ms: number): Promise<void> => {
-        await Promise.race([
-            work.catch(() => undefined),
-            new Promise<void>(resolve => { setTimeout(resolve, ms); }),
-        ]);
     };
 
     /** The folders the listener wants to see: every one of them unless the filter is on. */
@@ -332,7 +312,7 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
         );
         folderRowsCache = (data?.list ?? []).map(folder => ({
             id: folderSongId(folder.id),
-            name: String(folder.title ?? folder.id ?? ''),
+            name: String(folder.title || folder.id || ''),
             count: typeof folder.media_count === 'number' ? folder.media_count : undefined,
         }));
         return folderRowsCache;
@@ -403,23 +383,38 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
             const firstPage = Math.floor(offset / FOLDER_PAGE_SIZE) + 1;
             const lastPage = Math.floor((offset + size - 1) / FOLDER_PAGE_SIZE) + 1;
             const window: Array<FoliumSourceSong | null> = [];
-            let hasMore = false;
-            let total: number | undefined;
-            for (let page = firstPage; page <= lastPage; page += 1) {
+            const progress = { hasMore: false, total: undefined as number | undefined };
+            const start = offset % FOLDER_PAGE_SIZE;
+            const pageOf = async (page: number) => {
                 const answer = await readFolderPage(mediaId, page);
-                total = answer.total ?? total;
+                progress.total = answer.total ?? progress.total;
                 window.push(...answer.entries);
-                hasMore = answer.hasMore;
+                progress.hasMore = answer.hasMore;
                 // Opening a folder is how its cover is learned for free: this page already carries it.
                 const freeCover = coverAt(answer.infoCover, 400);
                 if (freeCover) void rememberCover(id, freeCover);
+                return answer;
+            };
+            for (let page = firstPage; page <= lastPage; page += 1) {
+                const answer = await pageOf(page);
                 if (!answer.entries.length && !answer.hasMore) break;
             }
-            const start = offset % FOLDER_PAGE_SIZE;
-            const items = window
+            const usable = (): FoliumSourceSong[] => window
                 .slice(start, start + size)
                 .filter((song): song is FoliumSourceSong => song !== null);
-            return { items, total, hasMore, nextOffset: offset + size };
+            let items = usable();
+            // 这一屏的条目全被丢掉（失效视频、非视频条目）时，宿主会当成"源提前说完了"而报错，歌单先空一次。
+            // 往后接着翻，直到攒到条目或翻到尽头；最多再翻 10 页，别为一条正常的空窗无限请求。
+            for (let page = lastPage + 1; !items.length && progress.hasMore && page <= lastPage + 10; page += 1) {
+                const answer = await pageOf(page);
+                items = usable();
+                if (!answer.entries.length && !answer.hasMore) break;
+            }
+            // 还是空的：把这一屏之后的条目提前给它，宿主至少能继续往下走，而不是抛"源提前说完了"。
+            if (!items.length) {
+                items = window.slice(start).filter((song): song is FoliumSourceSong => song !== null).slice(0, size);
+            }
+            return { items, total: progress.total, hasMore: progress.hasMore, nextOffset: offset + size };
         },
         async getPlaylistDetail(id) {
             const data = unwrap<{ info?: BilibiliFolder }>(
@@ -490,7 +485,8 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
             // happens to say (talking, game noise), so it is not lyrics and is never used.
             const subtitles = (info?.subtitle?.subtitles ?? [])
                 .filter(track => track.subtitle_url && !/^ai-/i.test(track.lan ?? ''));
-            const picked = subtitles.find(track => /zh/i.test(track.lan ?? '')) ?? subtitles[0];
+            const zhIndex = subtitles.findIndex(track => /zh/i.test(track.lan ?? ''));
+            const picked = zhIndex >= 0 ? subtitles[zhIndex] : (subtitles.length ? subtitles[0] : undefined);
             const target = picked?.subtitle_url;
             if (!target) return null;
             const body = unwrapOrNull<{ body?: Array<{ from?: number; content?: string }> }>(
@@ -503,13 +499,13 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
             return { main: { format: 'lrc', text: toLrc(lines) } };
         },
         // Handed to the host's match windows: the video's title as the song it probably is.
-        async getSearchAlias(song) {
+        getSearchAlias(song) {
             const title = cleanTitle(song.title);
-            if (!title) return null;
-            return { title, artist: artistInTitle(song.title) ?? artistOfUploader(song.artists[0]?.name) ?? '' };
+            if (!title) return Promise.resolve(null);
+            return Promise.resolve({ title, artist: artistInTitle(song.title) ?? artistOfUploader(song.artists[0]?.name) ?? '' });
         },
-        async getAlternateArtistName(song) {
-            return artistOfUploader(song.artists[0]?.name);
+        getAlternateArtistName(song) {
+            return Promise.resolve(artistOfUploader(song.artists[0]?.name));
         },
     };
 

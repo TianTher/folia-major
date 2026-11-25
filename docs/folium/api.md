@@ -2,7 +2,7 @@
 
 # Folium API 参考
 
-当前契约版本：**Folium 2.1**。
+当前契约版本：**Folium 2.2**。
 
 本文列出模组能用到的全部公开类型，内容直接来自契约文件 [`src/mods/folium/contract.ts`](../../src/mods/folium/contract.ts)
 （client 入口）、[`src/mods/folium/sources/contract.ts`](../../src/mods/folium/sources/contract.ts)（音源）与 [`src/mods/folium/mainContract.ts`](../../src/mods/folium/mainContract.ts)（main 入口），
@@ -20,7 +20,7 @@
 - **共享工具**：[FoliumWordSegment](#foliumwordsegment) · [FoliumWordColorRange](#foliumwordcolorrange) · [FoliumLyricsHelpers](#foliumlyricshelpers) · [FoliumThemeInput](#foliumthemeinput) · [FoliumDualThemeInput](#foliumdualthemeinput) · [FoliumDualTheme](#foliumdualtheme) · [FoliumThemeOverride](#foliumthemeoverride) · [FoliumThemeOverrideChangeOrigin](#foliumthemeoverridechangeorigin) · [FoliumThemeRefusal](#foliumthemerefusal) · [FoliumThemeWriteResult](#foliumthemewriteresult) · [FoliumThemeHelpers](#foliumthemehelpers)
 - **设置 schema**：[FoliumSettingType](#foliumsettingtype) · [FoliumSettingOption](#foliumsettingoption) · [FoliumSetting](#foliumsetting) · [FoliumSettingValues](#foliumsettingvalues) · [FoliumSettingAccess](#foliumsettingaccess)
 - **数据结构**：[FoliumLyricRuby](#foliumlyricruby) · [FoliumLyricSyllable](#foliumlyricsyllable) · [FoliumLyricAlternateText](#foliumlyricalternatetext) · [FoliumWord](#foliumword) · [FoliumBackgroundVocal](#foliumbackgroundvocal) · [FoliumLineTimingClass](#foliumlinetimingclass) · [FoliumLineTransitionMode](#foliumlinetransitionmode) · [FoliumWordRevealMode](#foliumwordrevealmode) · [FoliumLineRenderHints](#foliumlinerenderhints) · [FoliumLine](#foliumline) · [FoliumTheme](#foliumtheme) · [FoliumSong](#foliumsong) · [FoliumPlaybackState](#foliumplaybackstate) · [FoliumLoopMode](#foliumloopmode) · [FoliumQueueItem](#foliumqueueitem) · [FoliumQueueSnapshot](#foliumqueuesnapshot) · [FoliumQueueChange](#foliumqueuechange) · [FoliumQueueReplaceRefusal](#foliumqueuereplacerefusal) · [FoliumQueueReplaced](#foliumqueuereplaced) · [FoliumQueueReplaceRefused](#foliumqueuereplacerefused) · [FoliumQueueReplaceResult](#foliumqueuereplaceresult) · [FoliumPlaybackSnapshot](#foliumplaybacksnapshot) · [FoliumLyricFormat](#foliumlyricformat) · [FoliumLyricsTrack](#foliumlyricstrack) · [FoliumLyricsResult](#foliumlyricsresult) · [FoliumLegacyLyricsResult](#foliumlegacylyricsresult) · [FoliumParsedLyrics](#foliumparsedlyrics)
-- **音源（Folium 2）**：[FoliumText](#foliumtext) · [FoliumTextKey](#foliumtextkey) · [FoliumI18nService](#foliumi18nservice) · [FoliumSourceCapabilityId](#foliumsourcecapabilityid) · [FoliumSourceCapabilities](#foliumsourcecapabilities) · [FoliumSourceMark](#foliumsourcemark) · [FoliumSourceAvailability](#foliumsourceavailability) · [FoliumSourceDef](#foliumsourcedef) · [FoliumSourceItemKind](#foliumsourceitemkind) · [FoliumSourceHandle](#foliumsourcehandle) · [FoliumSourceNotice](#foliumsourcenotice) · [FoliumSourceErrorCode](#foliumsourceerrorcode) · [FoliumSourceErrorDetails](#foliumsourceerrordetails) · [FoliumSourceError](#foliumsourceerror) · [FoliumSourcePageStore](#foliumsourcepagestore) · [FoliumSourcesService](#foliumsourcesservice) · [FoliumSourcePage](#foliumsourcepage) · [FoliumSourceNamedRef](#foliumsourcenamedref) · [FoliumSourceAlbumRef](#foliumsourcealbumref) · [FoliumSourceReplayGain](#foliumsourcereplaygain) · [FoliumSourceSong](#foliumsourcesong) · [FoliumSourceUser](#foliumsourceuser) · [FoliumSourceFmLaunch](#foliumsourcefmlaunch) · [FoliumSourceCollection](#foliumsourcecollection) · [FoliumSourceSearchContext](#foliumsourcesearchcontext) · [FoliumSourceAccess](#foliumsourceaccess) · [FoliumSourceSearch](#foliumsourcesearch) · [FoliumSourceForeignSong](#foliumsourceforeignsong) · [FoliumSourceSongAvailability](#foliumsourcesongavailability) · [FoliumSourceSongs](#foliumsourcesongs) · [FoliumSourceAudioQuality](#foliumsourceaudioquality) · [FoliumSourceAudio](#foliumsourceaudio) · [FoliumSourceAudioPlayback](#foliumsourceaudioplayback) · [FoliumSourceExternalStatus](#foliumsourceexternalstatus) · [FoliumSourceExternalPlayback](#foliumsourceexternalplayback) · [FoliumSourceSurfacePlayback](#foliumsourcesurfaceplayback) · [FoliumSourcePlaybackReport](#foliumsourceplaybackreport) · [FoliumSourceReports](#foliumsourcereports) · [FoliumSourceLyricFormat](#foliumsourcelyricformat) · [FoliumSourceLyricsTrack](#foliumsourcelyricstrack) · [FoliumSourceLyricsResult](#foliumsourcelyricsresult) · [FoliumSourceLyricAlias](#foliumsourcelyricalias) · [FoliumSourceLyrics](#foliumsourcelyrics) · [FoliumSourceLoginCase](#foliumsourcelogincase) · [FoliumSourceLoginFailure](#foliumsourceloginfailure) · [FoliumSourceFailureCase](#foliumsourcefailurecase) · [FoliumSourceFailureDetail](#foliumsourcefailuredetail) · [FoliumSourceLoginState](#foliumsourceloginstate) · [FoliumSourceLoginStep](#foliumsourceloginstep) · [FoliumSourceLoginMethod](#foliumsourceloginmethod) · [FoliumSourceLoginTexts](#foliumsourcelogintexts) · [FoliumSourceLoginForm](#foliumsourceloginform) · [FoliumSourceLocalService](#foliumsourcelocalservice) · [FoliumSourceSetupStep](#foliumsourcesetupstep) · [FoliumSourceSetupView](#foliumsourcesetupview) · [FoliumSourceDiagnosticLine](#foliumsourcediagnosticline) · [FoliumSourceSelfCheck](#foliumsourceselfcheck) · [FoliumSourceKeptAccount](#foliumsourcekeptaccount) · [FoliumSourceAuth](#foliumsourceauth) · [FoliumSourceLibrary](#foliumsourcelibrary) · [FoliumSourceCatalog](#foliumsourcecatalog) · [FoliumSourceFmCatalog](#foliumsourcefmcatalog) · [FoliumSourcePreference](#foliumsourcepreference) · [FoliumSourcePreferences](#foliumsourcepreferences) · [FoliumSourceRecommendations](#foliumsourcerecommendations) · [FoliumSourceExploreItem](#foliumsourceexploreitem) · [FoliumSourceExploreSection](#foliumsourceexploresection) · [FoliumSourceExplorePage](#foliumsourceexplorepage) · [FoliumSourceExplore](#foliumsourceexplore) · [FoliumSourceMutations](#foliumsourcemutations) · [FoliumSourceCovers](#foliumsourcecovers) · [FoliumSourceRawEndpoint](#foliumsourcerawendpoint) · [FoliumSourceRaw](#foliumsourceraw)
+- **音源（Folium 2）**：[FoliumText](#foliumtext) · [FoliumTextKey](#foliumtextkey) · [FoliumI18nService](#foliumi18nservice) · [FoliumSourceCapabilityId](#foliumsourcecapabilityid) · [FoliumSourceCapabilities](#foliumsourcecapabilities) · [FoliumSourceMark](#foliumsourcemark) · [FoliumSourceAvailability](#foliumsourceavailability) · [FoliumSourceDef](#foliumsourcedef) · [FoliumSourceItemKind](#foliumsourceitemkind) · [FoliumSourceHandle](#foliumsourcehandle) · [FoliumSourceNotice](#foliumsourcenotice) · [FoliumSourceErrorCode](#foliumsourceerrorcode) · [FoliumSourceErrorDetails](#foliumsourceerrordetails) · [FoliumSourceError](#foliumsourceerror) · [FoliumSourcePageStore](#foliumsourcepagestore) · [FoliumSourcesService](#foliumsourcesservice) · [FoliumSourcePage](#foliumsourcepage) · [FoliumSourceNamedRef](#foliumsourcenamedref) · [FoliumSourceAlbumRef](#foliumsourcealbumref) · [FoliumSourceReplayGain](#foliumsourcereplaygain) · [FoliumSourceSong](#foliumsourcesong) · [FoliumSourceUser](#foliumsourceuser) · [FoliumSourceFmLaunch](#foliumsourcefmlaunch) · [FoliumSourceCollection](#foliumsourcecollection) · [FoliumSourceSearchContext](#foliumsourcesearchcontext) · [FoliumSourceAccess](#foliumsourceaccess) · [FoliumSourceSearch](#foliumsourcesearch) · [FoliumSourceForeignSong](#foliumsourceforeignsong) · [FoliumSourceSongAvailability](#foliumsourcesongavailability) · [FoliumSourceSongs](#foliumsourcesongs) · [FoliumSourceAudioQuality](#foliumsourceaudioquality) · [FoliumSourceAudio](#foliumsourceaudio) · [FoliumSourceAudioPlayback](#foliumsourceaudioplayback) · [FoliumSourceExternalStatus](#foliumsourceexternalstatus) · [FoliumSourceExternalPlayback](#foliumsourceexternalplayback) · [FoliumSourceSurfacePlayback](#foliumsourcesurfaceplayback) · [FoliumSourcePlaybackReport](#foliumsourceplaybackreport) · [FoliumSourceReports](#foliumsourcereports) · [FoliumSourceLyricFormat](#foliumsourcelyricformat) · [FoliumSourceLyricsTrack](#foliumsourcelyricstrack) · [FoliumSourceLyricsResult](#foliumsourcelyricsresult) · [FoliumSourceLyricAlias](#foliumsourcelyricalias) · [FoliumSourceLyrics](#foliumsourcelyrics) · [FoliumSourceLoginCase](#foliumsourcelogincase) · [FoliumSourceLoginFailure](#foliumsourceloginfailure) · [FoliumSourceFailureCase](#foliumsourcefailurecase) · [FoliumSourceFailureDetail](#foliumsourcefailuredetail) · [FoliumSourceLoginState](#foliumsourceloginstate) · [FoliumSourceLoginStep](#foliumsourceloginstep) · [FoliumSourceLoginMethod](#foliumsourceloginmethod) · [FoliumSourceLoginTexts](#foliumsourcelogintexts) · [FoliumSourceLoginForm](#foliumsourceloginform) · [FoliumSourceLocalService](#foliumsourcelocalservice) · [FoliumSourceSetupStep](#foliumsourcesetupstep) · [FoliumSourceSetupView](#foliumsourcesetupview) · [FoliumSourceSetupChoices](#foliumsourcesetupchoices) · [FoliumSourceSetupChoice](#foliumsourcesetupchoice) · [FoliumSourceSetupChoiceAction](#foliumsourcesetupchoiceaction) · [FoliumSourceDiagnosticLine](#foliumsourcediagnosticline) · [FoliumSourceSelfCheck](#foliumsourceselfcheck) · [FoliumSourceKeptAccount](#foliumsourcekeptaccount) · [FoliumSourceAuth](#foliumsourceauth) · [FoliumSourceLibrary](#foliumsourcelibrary) · [FoliumSourceCatalog](#foliumsourcecatalog) · [FoliumSourceFmCatalog](#foliumsourcefmcatalog) · [FoliumSourcePreference](#foliumsourcepreference) · [FoliumSourcePreferences](#foliumsourcepreferences) · [FoliumSourceRecommendations](#foliumsourcerecommendations) · [FoliumSourceExploreItem](#foliumsourceexploreitem) · [FoliumSourceExploreSection](#foliumsourceexploresection) · [FoliumSourceExplorePage](#foliumsourceexplorepage) · [FoliumSourceExplore](#foliumsourceexplore) · [FoliumSourceMutations](#foliumsourcemutations) · [FoliumSourceCovers](#foliumsourcecovers) · [FoliumSourceRawEndpoint](#foliumsourcerawendpoint) · [FoliumSourceRaw](#foliumsourceraw)
 - **实验接口**：[FoliumLayoutRect](#foliumlayoutrect) · [FoliumPlayerObstacle](#foliumplayerobstacle) · [FoliumPlayerLayout](#foliumplayerlayout) · [FoliumRemoteActionDef](#foliumremoteactiondef) · [FoliumRemoteActionsContext](#foliumremoteactionscontext) · [FoliumRemoteActionsDef](#foliumremoteactionsdef) · [FoliumRemoteActionsHandle](#foliumremoteactionshandle) · [FoliumProviderSong](#foliumprovidersong) · [FoliumAudioQuality](#foliumaudioquality) · [FoliumOmniProviderDef](#foliumomniproviderdef) · [FoliumJsonValue](#foliumjsonvalue) · [FoliumPlatformBackend](#foliumplatformbackend) · [FoliumPlatformDescription](#foliumplatformdescription) · [FoliumPlatformResponse](#foliumplatformresponse) · [FoliumPlatformErrorCode](#foliumplatformerrorcode) · [FoliumPlatformService](#foliumplatformservice)
 - **main 入口（Node）**：[FoliumMainModule](#foliummainmodule) · [FoliumMainApi](#foliummainapi) · [FoliumManifest](#foliummanifest) · [FoliumMainStorage](#foliummainstorage) · [FoliumModPaths](#foliummodpaths) · [FoliumMainPaths](#foliummainpaths) · [FoliumMainRuntime](#foliummainruntime) · [FoliumMainRpc](#foliummainrpc) · [FoliumMainRender](#foliummainrender) · [FoliumExportSpec](#foliumexportspec) · [FoliumExportResult](#foliumexportresult)
 - **音源类模组的 main 入口**：[FoliumSourceMainApi](#foliumsourcemainapi) · [FoliumSourceHostInfo](#foliumsourcehostinfo) · [FoliumSourceMainPaths](#foliumsourcemainpaths) · [FoliumSourceDiagnostics](#foliumsourcediagnostics) · [FoliumSourceNative](#foliumsourcenative) · [FoliumSourceNet](#foliumsourcenet) · [FoliumSourceNetSession](#foliumsourcenetsession) · [FoliumSourceRequestOptions](#foliumsourcerequestoptions) · [FoliumSourceIncomingMessage](#foliumsourceincomingmessage) · [FoliumSourceClientRequest](#foliumsourceclientrequest) · [FoliumSourceMediaRequest](#foliumsourcemediarequest) · [FoliumSourceLegacyStore](#foliumsourcelegacystore) · [FoliumSourceSeal](#foliumsourceseal) · [FoliumSourceCache](#foliumsourcecache) · [FoliumSourceCacheEntries](#foliumsourcecacheentries) · [FoliumSourceMediaRule](#foliumsourcemediarule) · [FoliumSourceMediaAllowed](#foliumsourcemediaallowed) · [FoliumSourceMediaServeRequest](#foliumsourcemediaserverequest) · [FoliumSourceMedia](#foliumsourcemedia) · [FoliumSourceWindows](#foliumsourcewindows)
@@ -3137,10 +3137,50 @@ Folium 2: what a user has to do before a source works (a program to install, a k
 | `title` | `FoliumText` | The title. |
 | `note?` | `FoliumText` | A line under it. |
 | `steps` | `FoliumSourceSetupStep[]` | The steps. |
+| `choices?` | `FoliumSourceSetupChoices` | Folium 2.2: a list to tick through, drawn in the window as one compact row each with one line of small text and a row of buttons pinned under it — for a choice over many things (which collections to offer), where the steps above (a line of words and a button per row) would be three rows tall and put its buttons past the fold. Ticking a row calls `runSetupAction(row id, 'toggle')`; the buttons under the list call `runSetupAction('choices', action id)`. |
+| `reload?` | `boolean` | Folium 2.2: the account's own data changed — read the account again before drawing it. |
+| `close?` | `boolean` | Folium 2.2: the user is done with the list — close it and go back to the account page. |
 | `complete` | `boolean` | Every step is done. |
 | `message?` | `{ text: FoliumText; tone: 'ok' \| 'warn' \| 'error' }` | What the source says to the action just done. |
 
-相关：[FoliumText](#foliumtext) · [FoliumSourceSetupStep](#foliumsourcesetupstep)
+相关：[FoliumText](#foliumtext) · [FoliumSourceSetupStep](#foliumsourcesetupstep) · [FoliumSourceSetupChoices](#foliumsourcesetupchoices)
+
+### FoliumSourceSetupChoices
+
+Folium 2.2: the tickable list of a setup view.
+
+| 成员 | 类型 | 说明 |
+| --- | --- | --- |
+| `items` | `FoliumSourceSetupChoice[]` | The rows, in the order they are drawn. |
+| `actions` | `FoliumSourceSetupChoiceAction[]` | The buttons pinned under the list. |
+| `summary?` | `FoliumText` | A line above the list, e.g. how many are ticked. |
+
+相关：[FoliumSourceSetupChoice](#foliumsourcesetupchoice) · [FoliumSourceSetupChoiceAction](#foliumsourcesetupchoiceaction) · [FoliumText](#foliumtext)
+
+### FoliumSourceSetupChoice
+
+Folium 2.2: one tickable row.
+
+| 成员 | 类型 | 说明 |
+| --- | --- | --- |
+| `id` | `string` | Its id, handed back to `runSetupAction`. |
+| `label` | `FoliumText` | What the row says. |
+| `note?` | `FoliumText` | A second, smaller line: a count, a date. |
+| `checked` | `boolean` | Ticked now. |
+
+相关：[FoliumText](#foliumtext)
+
+### FoliumSourceSetupChoiceAction
+
+Folium 2.2: a button under the list.
+
+| 成员 | 类型 | 说明 |
+| --- | --- | --- |
+| `id` | `string` | Its id, handed back to `runSetupAction` with `'choices'` as the step. |
+| `label` | `FoliumText` |  |
+| `primary?` | `boolean` |  |
+
+相关：[FoliumText](#foliumtext)
 
 ### FoliumSourceDiagnosticLine
 
@@ -4099,7 +4139,7 @@ Folium 2: `api.windows` of a source mod.
 The Folium version this host implements; mods read it at runtime as `folium.host.folium`.
 
 ```ts
-const FOLIUM_VERSION = Object.freeze({ major: 2, minor: 1 })
+const FOLIUM_VERSION = Object.freeze({ major: 2, minor: 2 })
 ```
 
 ### FoliumId

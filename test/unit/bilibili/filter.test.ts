@@ -54,6 +54,11 @@ describe('which folders show', () => {
         await expect(read({ enabled: true, selected: [], answered: true })).resolves.toEqual([]);
     });
 
+    it('ignores an id that is not a folder at all', async () => {
+        // 旧版本把"完成筛选"那一行当成收藏夹 id 存过，读的时候不能把它当选择。
+        await expect(read({ enabled: true, selected: ['fav:111', 'done'], answered: true }))
+            .resolves.toEqual(['fav:111']);
+    });
     it('ignores an id the account no longer has', async () => {
         await expect(read({ enabled: true, selected: ['fav:111', 'fav:999'], answered: true }))
             .resolves.toEqual(['fav:111']);

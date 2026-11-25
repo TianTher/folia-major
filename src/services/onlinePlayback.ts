@@ -213,11 +213,13 @@ export async function loadOnlineSongLyrics(
     }
     // `own`: only its source's own lyrics; another source's are never matched in for it.
     const mayMatchOthers = itemLyrics === 'match';
-    // An item that keeps only its own lyrics does not trust what an earlier match left behind either: a lyric stored
-    // before the source said `own` (or written by another source for the same id) is not this video's.
-    const trustsStoredLyrics = itemLyrics !== 'own';
     const lyricCacheKey = getSongResourceCacheKey('lyric', song);
     const onlineLyricsState = await loadOnlineLyricsState(song);
+    // 听的人自己挑的那一份（导进来的、手动换过的）永远算数：`own` 挡的是"别处匹配来的"和"上一次留下的"。
+    const userChosenLyrics = onlineLyricsState?.lyricsSource === 'imported' || Boolean(onlineLyricsState?.hasOnlineOverride);
+    // An item that keeps only its own lyrics does not trust what an earlier match left behind either: a lyric stored
+    // before the source said `own` (or written by another source for the same id) is not this video's.
+    const trustsStoredLyrics = itemLyrics !== 'own' || userChosenLyrics;
   const initialSettingsLyricSettings = useLyricSettingsStore.getState();
 
     if (!isCurrent()) return;

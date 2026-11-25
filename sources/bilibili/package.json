@@ -1,7 +1,7 @@
 {
-    "name": "@folia-sources/bilibili",
+    "name": "@folia-sources/iiliiili",
     "private": true,
-    "description": "B 站音源模组的依赖：qrcode 只用来在 main 入口把扫码登录的链接画成 PNG。",
+    "description": "  站音源模组的依赖：qrcode 只用来在 main 入口把扫码登录的链接画成 PNG。",
     "dependencies": {
         "qrcode": "1.5.4"
     }

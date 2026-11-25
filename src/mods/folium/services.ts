@@ -1,5 +1,4 @@
 import type { ModRuntimeInfo } from '../types';
-import { openSettings as openSettingsStore } from '../../stores/useSettingsModalStore';
 import { homeTabsRegistry, selectFoliumHomeTab } from './registries/homeTabs';
 import { invokeModNetFetch, invokeModPickFile, invokeModReleaseFile, invokeModRestoreFile } from '../ipc';
 import type {
@@ -257,11 +256,6 @@ const createEmbed = (
     return () => frame.remove();
 };
 
-const openSettingsWindow = (tab?: string): void => {
-    // The host's own settings dialog: openSettings(tab, subview, visualizer section) of its store.
-    openSettingsStore((tab ?? 'mods') as never);
-};
-
 export const createFoliumUiService = (mod: ModRuntimeInfo, context: FoliumContextKind): FoliumUiService => Object.freeze({
     toast: (message: string, options: { type?: 'info' | 'success' | 'error'; durationMs?: number } = {}) => {
         requireActions('ui', context).toast(String(message), options.type ?? 'info', options.durationMs);
@@ -275,10 +269,6 @@ export const createFoliumUiService = (mod: ModRuntimeInfo, context: FoliumContex
         if (!homeTabsRegistry.get(id)) throw new Error(`home-tab-not-registered:${tabId}`);
         actions.navigate('home');
         selectFoliumHomeTab(id);
-    },
-    openSettings: (tab?: string) => {
-        requireActions('ui', context);
-        openSettingsWindow(tab);
     },
     navigate: (view: 'home' | 'player') => {
         if (view !== 'home' && view !== 'player') throw new Error(`ui.navigate: unknown view "${String(view)}"`);

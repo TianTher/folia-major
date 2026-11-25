@@ -15,8 +15,6 @@ const PASSPORT = 'https://passport.bilibili.com';
 const SESSION_KEY = 'bilibili_session';
 /** Folder covers learned once, kept across restarts so the account read never asks for them again. */
 const COVERS_KEY = 'bilibili_covers';
-/** The listener's folder filter: which folders the source offers at all. */
-const FILTER_KEY = 'bilibili_filter';
 /** How long an audio address the source issued stays allowed to be read cross-origin. */
 const ISSUED_URL_TTL_MS = 2 * 60 * 60 * 1000;
 
@@ -180,7 +178,7 @@ export default function activate(api: FoliumSourceMainApi): void {
     // The audio a browser cannot fetch by itself: this process asks for it, with the Referer bilibili's own pages
     // send, and hands the answer back as it came (status 206 and Content-Range included, so seeking works).
     api.media.serve('audio', async (request: { path?: string; range?: string | null }) => {
-        const token = String(request.path ?? '').split('/')[0];
+        const token = (request.path ?? '').split('/')[0];
         const entry = proxiedUrls.get(token);
         if (!entry) return new Response('unknown audio', { status: 404 });
         const headers: Record<string, string> = headersFor();
@@ -195,7 +193,7 @@ export default function activate(api: FoliumSourceMainApi): void {
         return new Response(upstream.body, { status: upstream.status, headers: passed });
     });
 
-    const operations: Record<string, (params: Record<string, string | number | undefined>) => Promise<unknown>> = {
+    const operations: Record<string, ((params: Record<string, string | number | undefined>) => unknown) | undefined> = {
         async nav() {
             const { status, text } = await fetchJson(url(API, '/x/web-interface/nav'));
             return answer(status, text);
@@ -210,7 +208,7 @@ export default function activate(api: FoliumSourceMainApi): void {
             try {
                 return { code: 0, data: { dataUrl: await qrDataUrl(target) } };
             } catch (error) {
-                return { code: -1, message: `qrImage: ${String((error as Error).message)}` };
+                return { code: -1, message: `qrImage: ${(error as Error).message}` };
             }
         },
         async qrPoll(params) {
@@ -222,7 +220,7 @@ export default function activate(api: FoliumSourceMainApi): void {
             if (parsed.code === 0 && parsed.data && parsed.data.code === 0) takeSessionFrom(setCookies);
             return { code: parsed.code ?? 0, message: '', data: parsed.data };
         },
-        async logout() {
+        logout() {
             keepSession({});
             return { code: 0, data: null };
         },
@@ -261,36 +259,7 @@ export default function activate(api: FoliumSourceMainApi): void {
                 return { code: -1, message: `subtitle answered ${status} and not JSON` };
             }
         },
-        async filterGet() {
-            try {
-                const kept = api.legacy.store.get(FILTER_KEY) as { enabled?: boolean; selected?: string[]; answered?: boolean } | undefined;
-                return {
-                    code: 0,
-                    data: {
-                        enabled: kept?.enabled === true,
-                        selected: Array.isArray(kept?.selected) ? kept.selected : [],
-                        answered: kept?.answered === true,
-                    },
-                };
-            } catch {
-                return { code: 0, data: { enabled: false, selected: [], answered: false } };
-            }
-        },
-        async filterPut(params) {
-            try {
-                const kept = (api.legacy.store.get(FILTER_KEY) as { enabled?: boolean; selected?: string[]; answered?: boolean } | undefined) ?? {};
-                const next = {
-                    enabled: params.enabled === undefined ? kept.enabled === true : String(params.enabled) === 'true',
-                    selected: params.selected === undefined ? (Array.isArray(kept.selected) ? kept.selected : []) : String(params.selected).split(',').filter(Boolean),
-                    answered: params.answered === undefined ? kept.answered === true : String(params.answered) === 'true',
-                };
-                api.legacy.store.set(FILTER_KEY, next);
-                return { code: 0, data: next };
-            } catch (error) {
-                return { code: -1, message: `filterPut: ${String((error as Error).message)}` };
-            }
-        },
-        async coversGet() {
+        coversGet() {
             try {
                 const kept = api.legacy.store.get(COVERS_KEY) as Record<string, string> | undefined;
                 return { code: 0, data: kept && typeof kept === 'object' ? kept : {} };
@@ -298,7 +267,7 @@ export default function activate(api: FoliumSourceMainApi): void {
                 return { code: 0, data: {} };
             }
         },
-        async coversPut(params) {
+        coversPut(params) {
             const id = String(params.id ?? '');
             const cover = String(params.cover ?? '');
             if (!id || !cover) return { code: -400, message: 'coversPut: id and cover' };
@@ -308,7 +277,7 @@ export default function activate(api: FoliumSourceMainApi): void {
                 api.legacy.store.set(COVERS_KEY, kept);
                 return { code: 0, data: null };
             } catch (error) {
-                return { code: -1, message: `coversPut: ${String((error as Error).message)}` };
+                return { code: -1, message: `coversPut: ${(error as Error).message}` };
             }
         },
         async view(params) {
@@ -332,7 +301,7 @@ export default function activate(api: FoliumSourceMainApi): void {
         try {
             return await handler(values);
         } catch (error) {
-            return { code: -1, message: `bilibili: ${String((error as Error)?.message ?? error)}` };
+            return { code: -1, message: `bilibili: ${(error as Error).message}` };
         }
     });
 }

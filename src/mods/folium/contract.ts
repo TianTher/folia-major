@@ -17,7 +17,7 @@
 import type { FoliumI18nService, FoliumSourcesService } from './sources/contract';
 
 /** The Folium version this host implements; mods read it at runtime as `folium.host.folium`. */
-export const FOLIUM_VERSION = Object.freeze({ major: 2, minor: 1 });
+export const FOLIUM_VERSION = Object.freeze({ major: 2, minor: 2 });
 
 /** `modid:name`, like a Forge ResourceLocation. The mod id part is added by the host. */
 export type FoliumId = string;
@@ -1474,8 +1474,6 @@ export interface FoliumUiService {
     openPlayerPanel(tabId?: string): void;
     /** Opens this mod's registered home tab (local id). Rejects unknown tabs. */
     openHomeTab(tabId: string): void;
-    /** Opens the host's settings window on 	ab (the mods page when left out), where this mod's sections live. */
-    openSettings(tab?: string): void;
     /** Switches to the home or player view. */
     navigate(view: 'home' | 'player'): void;
     /** Opens the host volume panel (the command palette's volume command). */

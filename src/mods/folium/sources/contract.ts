@@ -895,16 +895,16 @@ export interface FoliumSourceSetupView {
     /** The steps. */
     steps: FoliumSourceSetupStep[];
     /**
-     * Folium 2.3: a list to tick through, drawn in the window as one compact row each with one line of small text and a
+     * Folium 2.2: a list to tick through, drawn in the window as one compact row each with one line of small text and a
      * row of buttons pinned under it — for a choice over many things (which collections to offer), where the steps
      * above (a line of words and a button per row) would be three rows tall and put its buttons past the fold.
      * Ticking a row calls `runSetupAction(row id, 'toggle')`; the buttons under the list call
      * `runSetupAction('choices', action id)`.
      */
     choices?: FoliumSourceSetupChoices;
-    /** Folium 2.3: the account's own data changed — read the account again before drawing it. */
+    /** Folium 2.2: the account's own data changed — read the account again before drawing it. */
     reload?: boolean;
-    /** Folium 2.3: the user is done with the list — close it and go back to the account page. */
+    /** Folium 2.2: the user is done with the list — close it and go back to the account page. */
     close?: boolean;
     /** Every step is done. */
     complete: boolean;
@@ -912,7 +912,7 @@ export interface FoliumSourceSetupView {
     message?: { text: FoliumText; tone: 'ok' | 'warn' | 'error' };
 }
 
-/** Folium 2.3: the tickable list of a setup view. */
+/** Folium 2.2: the tickable list of a setup view. */
 export interface FoliumSourceSetupChoices {
     /** The rows, in the order they are drawn. */
     items: FoliumSourceSetupChoice[];
@@ -922,7 +922,7 @@ export interface FoliumSourceSetupChoices {
     summary?: FoliumText;
 }
 
-/** Folium 2.3: one tickable row. */
+/** Folium 2.2: one tickable row. */
 export interface FoliumSourceSetupChoice {
     /** Its id, handed back to `runSetupAction`. */
     id: string;
@@ -934,7 +934,7 @@ export interface FoliumSourceSetupChoice {
     checked: boolean;
 }
 
-/** Folium 2.3: a button under the list. */
+/** Folium 2.2: a button under the list. */
 export interface FoliumSourceSetupChoiceAction {
     /** Its id, handed back to `runSetupAction` with `'choices'` as the step. */
     id: string;

@@ -193,6 +193,13 @@ const SetupChoiceList: React.FC<{
     onAction: (id: string) => void;
 }> = ({ choices, busy, onToggle, onAction }) => {
     const { t } = useTranslation();
+    // 勾上就先画勾：平台回话要一个来回，等它回来才动的话，手指按下去的那一下像是没反应。
+    // 平台回一份新清单时清空（那份是准的）。
+    const [pending, setPending] = useState<Record<string, boolean>>({});
+    const signature = choices.items.map(item => `${item.id}:${item.checked ? 1 : 0}`).join(',');
+    useEffect(() => { setPending({}); }, [signature]);
+    const isChecked = (item: { id: string; checked: boolean }) =>
+        Object.prototype.hasOwnProperty.call(pending, item.id) ? pending[item.id] : item.checked;
     return (
         <div className="mt-2">
             {choices.summaryKey && (
@@ -206,9 +213,12 @@ const SetupChoiceList: React.FC<{
                                 <input
                                     type="checkbox"
                                     className="h-3.5 w-3.5 shrink-0 accent-[var(--login-pc)]"
-                                    checked={item.checked}
+                                    checked={isChecked(item)}
                                     disabled={busy}
-                                    onChange={() => onToggle(item.id)}
+                                    onChange={() => {
+                                        setPending(current => ({ ...current, [item.id]: !isChecked(item) }));
+                                        onToggle(item.id);
+                                    }}
                                 />
                                 <span className="min-w-0 flex-1 truncate text-[12.5px] leading-[18px] text-[color:var(--st-t1)]">
                                     {t(item.labelKey)}

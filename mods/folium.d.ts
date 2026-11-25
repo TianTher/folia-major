@@ -16,7 +16,7 @@
 // 里面的每个文件都算模组的内容），路径改成拷过去的位置。这个文件只给编辑器看，宿主不读它。
 
 /** The Folium version this host implements; mods read it at runtime as `folium.host.folium`. */
-export declare const FOLIUM_VERSION: { readonly major: 2; readonly minor: 1 };
+export declare const FOLIUM_VERSION: { readonly major: 2; readonly minor: 2 };
 
 /** `modid:name`, like a Forge ResourceLocation. The mod id part is added by the host. */
 export type FoliumId = string;
@@ -1473,8 +1473,6 @@ export interface FoliumUiService {
     openPlayerPanel(tabId?: string): void;
     /** Opens this mod's registered home tab (local id). Rejects unknown tabs. */
     openHomeTab(tabId: string): void;
-    /** Opens the host's settings window on 	ab (the mods page when left out), where this mod's sections live. */
-    openSettings(tab?: string): void;
     /** Switches to the home or player view. */
     navigate(view: 'home' | 'player'): void;
     /** Opens the host volume panel (the command palette's volume command). */
@@ -3872,16 +3870,16 @@ export interface FoliumSourceSetupView {
     /** The steps. */
     steps: FoliumSourceSetupStep[];
     /**
-     * Folium 2.3: a list to tick through, drawn in the window as one compact row each with one line of small text and a
+     * Folium 2.2: a list to tick through, drawn in the window as one compact row each with one line of small text and a
      * row of buttons pinned under it — for a choice over many things (which collections to offer), where the steps
      * above (a line of words and a button per row) would be three rows tall and put its buttons past the fold.
      * Ticking a row calls `runSetupAction(row id, 'toggle')`; the buttons under the list call
      * `runSetupAction('choices', action id)`.
      */
     choices?: FoliumSourceSetupChoices;
-    /** Folium 2.3: the account's own data changed — read the account again before drawing it. */
+    /** Folium 2.2: the account's own data changed — read the account again before drawing it. */
     reload?: boolean;
-    /** Folium 2.3: the user is done with the list — close it and go back to the account page. */
+    /** Folium 2.2: the user is done with the list — close it and go back to the account page. */
     close?: boolean;
     /** Every step is done. */
     complete: boolean;
@@ -3889,7 +3887,7 @@ export interface FoliumSourceSetupView {
     message?: { text: FoliumText; tone: 'ok' | 'warn' | 'error' };
 }
 
-/** Folium 2.3: the tickable list of a setup view. */
+/** Folium 2.2: the tickable list of a setup view. */
 export interface FoliumSourceSetupChoices {
     /** The rows, in the order they are drawn. */
     items: FoliumSourceSetupChoice[];
@@ -3899,7 +3897,7 @@ export interface FoliumSourceSetupChoices {
     summary?: FoliumText;
 }
 
-/** Folium 2.3: one tickable row. */
+/** Folium 2.2: one tickable row. */
 export interface FoliumSourceSetupChoice {
     /** Its id, handed back to `runSetupAction`. */
     id: string;
@@ -3911,7 +3909,7 @@ export interface FoliumSourceSetupChoice {
     checked: boolean;
 }
 
-/** Folium 2.3: a button under the list. */
+/** Folium 2.2: a button under the list. */
 export interface FoliumSourceSetupChoiceAction {
     /** Its id, handed back to `runSetupAction` with `'choices'` as the step. */
     id: string;

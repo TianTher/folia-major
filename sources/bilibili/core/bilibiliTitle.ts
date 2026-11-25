@@ -26,13 +26,13 @@ const markers = [
 
 /** The title with the video's own decoration taken off; never empty (falls back to the title as given). */
 export const cleanTitle = (title: string): string => {
-    let text = String(title ?? '');
+    let text = title;
     text = text.replace(noise, ' ');
     // `歌手 - 歌名 ｜ 第3P`: the part after the bar is the upload's own bookkeeping.
     text = text.split(/[|｜]/)[0] ?? text;
     for (const marker of markers) text = text.replace(marker, ' ');
     text = text.replace(/[_～~]+/g, ' ').replace(/\s+/g, ' ').trim();
-    return text || String(title ?? '').trim();
+    return text || title.trim();
 };
 
 /**
@@ -52,7 +52,7 @@ export const artistInTitle = (title: string): string | null => {
  * the upload itself answers null instead.
  */
 export const artistOfUploader = (name: string | undefined): string | null => {
-    const text = String(name ?? '').trim();
+    const text = (name ?? '').trim();
     if (!text) return null;
     if (/站|搬运|合集|频道|音乐台|精选|官方|字幕组|日报|周刊/.test(text)) return null;
     return text;

@@ -1,5 +1,5 @@
 import type { FoliumSourceDef } from '@folia/folium';
-import type { BilibiliCoreEnv, BilibiliWebEnv } from './bilibiliApi';
+import type { BilibiliCoreEnv } from './bilibiliApi';
 import { createRequest } from './bilibiliApi';
 import { createCapabilities } from './bilibiliCapabilities';
 

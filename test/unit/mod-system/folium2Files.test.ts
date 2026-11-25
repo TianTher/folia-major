@@ -222,11 +222,12 @@ describe('the trusted table of the built-in sources (§5.1)', () => {
                 constant('sources/spotify/main/spotifyApiBridge.cjs', 'DEVICE_KEY')!,
             ],
             fnmusic: [constant('sources/fnmusic/main/fnmusicApiBridge.cjs', 'CONFIG_STORE_KEY')!, constant('sources/fnmusic/main/fnmusicApiBridge.cjs', 'DEVICE_STORE_KEY')!],
+            bilibili: [constant('sources/bilibili/main/index.ts', 'SESSION_KEY')!, constant('sources/bilibili/main/index.ts', 'COVERS_KEY')!],
         };
         Object.entries(expected).forEach(([modId, keys]) => {
             expect(BUILTIN_SOURCE_TABLE[modId].storeKeys, modId).toEqual(keys);
         });
-        expect(Object.keys(BUILTIN_SOURCE_TABLE)).toEqual(['netease', 'kugou', 'qq', 'bodian', 'qishui', 'ytm', 'spotify', 'apple-music', 'fnmusic', 'lxmusic']);
+        expect(Object.keys(BUILTIN_SOURCE_TABLE)).toEqual(['netease', 'kugou', 'qq', 'bodian', 'qishui', 'ytm', 'spotify', 'apple-music', 'fnmusic', 'lxmusic', 'bilibili']);
     });
 
     it('names the partitions and userData folders main.cjs gives the platforms', () => {

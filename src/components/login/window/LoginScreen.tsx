@@ -37,16 +37,16 @@ export type LoginScreenProps = {
     activeProviderId: OnlineProviderId | null;
     /** 选中的那一行，和它通向什么。 */
     chosen: { providerId: OnlineProviderId; lead: RowLead } | null;
-    /** 选中的这一行的登录（账户 controller 快照里的登录会话）；不在登录、或者还没开始时为 null。 */
+    /** 选中的这一行的登录B账户 controller 快照里的登录会话）；不在登录、或者还没开始时为 null。 */
     login: LibraryLoginSessionSnapshot | null;
     onChoose: (providerId: OnlineProviderId) => void;
-    /** 「安装音源模组」：跳到「设置 → 音源」的安装那一组（Folium 2.0 方案 §5.1）。没有就不画（网页版不能装）。 */
+    /** 「安装音源模组」：跳到「设置 → 音源」的安装那一组BFolium 2.0 方案 §5.1）。没有就不画B网页版不能装）。 */
     onInstallSourceMod?: () => void;
-    /** 开始（浏览器登录的那一下），或者重来，保留选过的登录方式。 */
+    /** 开始B浏览器登录的那一下），或者重来，保留选过的登录方式。 */
     onStart: () => void;
-    /** 表单式登录提交（走账户 controller 的完整链路：提交 → 读账号 → 报完成）；返回登录完成结局。 */
+    /** 表单式登录提交B走账户 controller 的完整链路：提交 → 读账号 → 报完成）；返回登录完成结局。 */
     onSubmitForm: (providerId: OnlineProviderId, values: Record<string, string>) => Promise<LibraryLoginCompletion>;
-    /** 用这种登录方式开始（任何时候都可以换）。 */
+    /** 用这种登录方式开始B任何时候都可以换）。 */
     onSelectMethod: (methodId: string) => void;
     onReopenBrowser: () => void;
     /** 重启登录要靠的本地服务，起来之后把登录重新开始。 */
@@ -55,9 +55,9 @@ export type LoginScreenProps = {
     onSignOut: () => void;
     /** 账号那一幅的「同步数据」：重新读选中的这个平台的账号、歌单与红心。 */
     onSync: () => void;
-    /** 正在同步数据的平台（同一时间一个）：是选中的这个就转圈，是别的就只是不可按。 */
+    /** 正在同步数据的平台B同一时间一个）：是选中的这个就转圈，是别的就只是不可按。 */
     syncingProviderId?: OnlineProviderId | null;
-    /** 这一次登录的诊断报告（生成不了是空串）。 */
+    /** 这一次登录的诊断报告B生成不了是空串）。 */
     buildReport: () => Promise<string>;
     /** 按下去打开窗口的那个东西在哪：窗口从那一边出来。 */
     origin?: LoginOrigin | null;
@@ -67,23 +67,23 @@ export type LoginScreenProps = {
     onDoneLeave?: () => void;
     /** 动画放完了。 */
     onDoneEnd?: () => void;
-    /** 开着的配置清单（账户 controller 快照里的那一份）；不是选中的这个平台的不画。 */
+    /** 开着的配置清单B账户 controller 快照里的那一份）；不是选中的这个平台的不画。 */
     setup?: LibraryProviderSetupSnapshot | null;
     /** 选中的这个平台有配置清单：账号那一幅多一个打开它的按钮。 */
     canOpenSetup?: boolean;
-    /** 那个按钮叫什么：平台自己给的名字（B 站是「收藏夹筛选」）；没有就用宿主的通用词。 */
+    /** 那个按钮叫什么：平台自己给的名字BB 站是「收藏夹筛选」）；没有就用宿主的通用词。 */
     setupEntryTitle?: string | null;
     onOpenSetup?: () => void;
     /** 做清单上的一个操作；回 true 是平台做完了。 */
     onSetupAction?: (stepId: string, actionId: string, value?: string) => Promise<boolean>;
-    /** 收起清单（登录之后的那一份：报这一次登录的完成）。 */
+    /** 收起清单B登录之后的那一份：报这一次登录的完成）。 */
     onFinishSetup?: () => void;
 };
 
 const nothing = () => { };
 const nothingDone = async () => false;
 
-/** 到了 `at` 这个时刻没有（毫秒时间戳）；没到就在那一刻再画一次。 */
+/** 到了 `at` 这个时刻没有B毫秒时间戳）；没到就在那一刻再画一次。 */
 const useReached = (at: number): boolean => {
     const [tick, setTick] = useState(0);
     const reached = Date.now() >= at;
@@ -111,7 +111,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     const failure: LoginFailure | null = providerId ? login?.failure ?? null : null;
     const shownSetup = setup && setup.providerId === providerId ? setup : null;
     const scene = loginScene({ lead: chosen?.lead ?? null, phase: login?.phase ?? null, inBrowser, failed: Boolean(failure), providerId, setup: shownSetup !== null });
-    // 选中的登录方式自己的说明（浏览器登录的几种方式靠它说清楚差在哪）。
+    // 选中的登录方式自己的说明B浏览器登录的几种方式靠它说清楚差在哪）。
     const methodNote = login?.methods.find(method => method.id === login.selectedMethodId)?.noteKey;
     const texts = login?.texts ?? null;
     const retry = onStart;
@@ -131,7 +131,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         const { view, busy, origin: from } = shownSetup;
         headline = t(view.titleKey, view.params);
         note = view.noteKey ? t(view.noteKey, view.params) : undefined;
-        // 登录之后的那一份：做完是「完成」，没做完也能先走（「稍后再说」）；从账号那一幅打开的是「返回」。
+        // 登录之后的那一份：做完是「完成」，没做完也能先走B「稍后再说」）；从账号那一幅打开的是「返回」。
         const finishLabel = view.complete ? 'login.setupDone' : from === 'sign-in' ? 'login.setupLater' : 'login.setupBack';
         actions = [{ label: t(finishLabel), primary: view.complete, busy: busy && from === 'sign-in' && view.complete, disabled: busy, onClick: onFinishSetup }];
         checklist = <SetupChecklist view={view} busy={busy} onAction={onSetupAction} />;
@@ -171,7 +171,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         const view = accountView(summary ? rowStatus(summary) : null, Boolean(summary?.user));
         headline = summary?.user?.nickname ?? label;
         if (view === 'gone') {
-            // 这一幅开着的时候登录没有了：说一句，留一个重新登录（再选一次这一行）。
+            // 这一幅开着的时候登录没有了：说一句，留一个重新登录B再选一次这一行）。
             if (summary && rowStatus(summary) === 'ran-out') note = t('status.loginExpired');
             if (summary) actions = [{ label: t('home.loginBrowserRetry'), primary: true, onClick: () => onChoose(providerId) }];
         } else {
@@ -185,9 +185,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
             };
             // The entry says what it opens: a source that names its setup view gets that name instead of the host's
             // generic words; a source that does not name one keeps them.
-    const setupAction: MessageAction[] = canOpenSetup
-        ? [{ label: setupEntryTitle ?? (shownSetup ? t(shownSetup.view.titleKey) : t('login.setupOpen')), onClick: onOpenSetup }]
-        : [];
+            const setupAction: MessageAction[] = canOpenSetup
+                ? [{ label: setupEntryTitle ?? (shownSetup ? t(shownSetup.view.titleKey) : t('login.setupOpen')), onClick: onOpenSetup }]
+                : [];
             actions = [...switchAction, syncAction, ...setupAction, { label: t('account.logout'), onClick: onSignOut }];
         }
     } else if (scene === 'accountless') {
@@ -209,8 +209,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         if (scene === 'browser' && login?.canReopenLoginPage) actions = [{ label: t('home.loginBrowserOpen'), onClick: onReopenBrowser }];
     }
 
-    // 登录成功的动画：扫码之后那一块画由它画，读到账号之后它铺满窗口，再让窗口走（done/）。动效关着就没有；
-    // 窗口关了、或者被跳过了，它当场停（规则在 loginDonePlaying）。
+    // 登录成功的动画：扫码之后那一块画由它画，读到账号之后它铺满窗口，再让窗口走Bdone/）。动效关着就没有；
+    // 窗口关了、或者被跳过了，它当场停B规则在 loginDonePlaying）。
     const playing = providerId !== null && loginDonePlaying({ open: isOpen, still, scene, done });
     const doneParts = useLoginDone({
         playing,
@@ -245,7 +245,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
             origin={origin}
             quiet={shownDone}
             leavesThrough={shownDone}
-            // 那一面颜色的框一直在（动画要量窗口有多大），读到账号才有内容。
+            // 那一面颜色的框一直在B动画要量窗口有多大），读到账号才有内容。
             overlay={still || !providerId || !colours ? undefined : narrow => (
                 <LoginDoneFlood
                     parts={doneParts}

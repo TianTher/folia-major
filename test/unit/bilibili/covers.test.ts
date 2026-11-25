@@ -13,7 +13,6 @@ const createEnv = () => ({
     text: (key: string) => key,
     translate: (key: string) => key,
     error: (code: string, message: string) => Object.assign(new Error(message), { code }),
-    pageStore: () => ({ get: () => null, set: () => undefined, keys: () => [] }),
 }) as unknown as BilibiliCoreEnv;
 
 const folders = [

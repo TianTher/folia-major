@@ -137,8 +137,9 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
         },
         async logout() {
             pendingSignIns.clear();
-            // 退出去之后可能是另一个账号：收藏夹列表要重新读。
+            // 退出去之后可能是另一个账号：收藏夹列表要重新读，勾的收藏夹也是上一个账号的，不能留着。
             folderRowsCache = null;
+            env.folderFilter?.save({ enabled: false, selected: [], answered: false });
             await request('logout');
         },
         getLoginTexts() {
@@ -164,8 +165,9 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
             switch (data.code ?? -1) {
                 case 0:
                     pendingSignIns.delete(key);
-                    // 换一个账号登录：上一个账号读来的收藏夹列表不能拿来回答这一个。
+                    // 换一个账号登录：上一个账号读来的收藏夹列表不能拿来回答这一个，勾选也要重新问一遍。
                     folderRowsCache = null;
+                    env.folderFilter?.save({ enabled: false, selected: [], answered: false });
                     return { state: 'confirmed' };
                 case 86090: return { state: 'scanned' };
                 case 86101: return { state: 'waiting' };
@@ -191,9 +193,10 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
             if (stepId === 'choices') {
                 if (actionId === 'all') {
                     const rows = await folderRows().catch(() => []);
-                    filter.save({ selected: rows.map(row => row.id), enabled: rows.length > 0, answered: true });
+                    filter.save({ selected: rows.map(row => row.id), enabled: true, answered: true });
                 } else if (actionId === 'none') {
-                    filter.save({ selected: [], enabled: false, answered: true });
+                    // 一个都不勾也是一种回答：筛选开着，歌单里就一个收藏夹也没有（不偷偷回退到全部）。
+                    filter.save({ selected: [], enabled: true, answered: true });
                 } else {
                     // Done: the answer is in; the host reads the account again when it changes.
                     filter.save({ answered: true });
@@ -203,7 +206,7 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
                 const selected = new Set(filter.read().selected);
                 if (selected.has(stepId)) selected.delete(stepId);
                 else selected.add(stepId);
-                filter.save({ selected: [...selected], enabled: selected.size > 0 });
+                filter.save({ selected: [...selected], enabled: true });
             }
             const view = await folderSetupView();
             // 全选/全不选/完成都会改「歌单里有什么」：宿主得把这副账号重新读一遍才看得见。
@@ -218,13 +221,6 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
             return view;
         },
     };
-
-    /**
-     * A folder's cover is not in the folder list: `created/list-all` answered an empty `cover` on all 86 folders of a
-     * real account. It is in the folder's own first page (`resource/list`'s `data.info.cover`) — where bilibili's own
-     * pages read it from. One small request a folder, kept in the main entry's cache, and only for the folders the
-     * listener chose: never the whole library at once, and never twice at the same time.
-     */
 
     /**
      * Folder covers, cheaply. The folder list answers an empty `cover` for every folder; the real one is in that
@@ -399,9 +395,11 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
                 const answer = await pageOf(page);
                 if (!answer.entries.length && !answer.hasMore) break;
             }
+            // 从这一屏的位置往后取，够 size 条为止：中间有被丢掉的条目时，后面的补上来，宿主不用重读同一段。
             const usable = (): FoliumSourceSong[] => window
-                .slice(start, start + size)
-                .filter((song): song is FoliumSourceSong => song !== null);
+                .slice(start)
+                .filter((song): song is FoliumSourceSong => song !== null)
+                .slice(0, size);
             let items = usable();
             // 这一屏的条目全被丢掉（失效视频、非视频条目）时，宿主会当成"源提前说完了"而报错，歌单先空一次。
             // 往后接着翻，直到攒到条目或翻到尽头；最多再翻 10 页，别为一条正常的空窗无限请求。
@@ -409,10 +407,6 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
                 const answer = await pageOf(page);
                 items = usable();
                 if (!answer.entries.length && !answer.hasMore) break;
-            }
-            // 还是空的：把这一屏之后的条目提前给它，宿主至少能继续往下走，而不是抛"源提前说完了"。
-            if (!items.length) {
-                items = window.slice(start).filter((song): song is FoliumSourceSong => song !== null).slice(0, size);
             }
             return { items, total: progress.total, hasMore: progress.hasMore, nextOffset: offset + size };
         },

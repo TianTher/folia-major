@@ -12,7 +12,6 @@ const createEnv = (web?: { apiBase: string }) => ({
     text: (key: string) => key,
     translate: (key: string) => key,
     error: (code: string, message: string) => Object.assign(new Error(message), { code }),
-    pageStore: () => ({ get: () => null, set: () => undefined, keys: () => [] }),
     ...(web ? { web } : {}),
 }) as unknown as BilibiliCoreEnv;
 

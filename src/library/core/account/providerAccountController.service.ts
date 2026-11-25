@@ -720,8 +720,9 @@ export const createProviderAccountController = (deps: LibraryAccountControllerDe
                     log('warn', 'setup:reload-error', { providerId, ...describeLoginError(error) });
                 }
             }
-            // 平台说这一次就做完了：收起清单，回到账号那一幅。
-            if (view.close === true) batch(() => { closeSetup(); });
+            // 平台说这一次就做完了：收起清单，回到账号那一幅。收起的是刚才那一份——重读账号的这段时间里
+            // 清单可能已经被收起、或者换成了另一家平台的（代次会前进），那就别动它。
+            if (view.close === true && seq === setupSeq) batch(() => { closeSetup(); });
             return { status: 'done' };
         } catch (error) {
             log('warn', 'setup:action-error', { providerId, stepId, actionId, ...describeLoginError(error) });

@@ -17,7 +17,6 @@ const createEnv = (filter?: BilibiliFolderFilter) => ({
         folderFilter: {
             read: () => filter,
             save: () => undefined,
-            open: () => undefined,
         },
     } : {}),
 }) as unknown as BilibiliCoreEnv;
@@ -76,18 +75,17 @@ describe('the step offered after a sign-in', () => {
         await expect(answered.getSetup!()).resolves.toMatchObject({ complete: false });
     });
 
-    it('"show everything" answers the step without filtering', async () => {
+    it('"check none" answers the step with an empty choice, never a silent "all"', async () => {
         const saved: Array<Record<string, unknown>> = [];
         const env = {
             ...(createEnv({ enabled: true, selected: ['fav:111'], answered: false }) as unknown as Record<string, unknown>),
             folderFilter: {
                 read: () => ({ enabled: true, selected: ['fav:111'], answered: false }),
                 save: (patch: Record<string, unknown>) => { saved.push(patch); },
-                open: () => undefined,
             },
         } as unknown as BilibiliCoreEnv;
         const setup = await createCapabilities(env, request).auth.runSetupAction!('choices', 'none');
-        expect(saved[0]).toEqual({ selected: [], enabled: false, answered: true });
+        expect(saved[0]).toEqual({ selected: [], enabled: true, answered: true });
         expect(setup.complete).toBe(false);
     });
 });
@@ -112,7 +110,6 @@ describe('the checklist in the sign-in window', () => {
             folderFilter: {
                 read: () => ({ ...state, selected: [...state.selected] }),
                 save: (patch: Record<string, unknown>) => { saved.push(patch); Object.assign(state, patch); },
-                open: () => undefined,
             },
         } as unknown as BilibiliCoreEnv;
         return { capabilities: createCapabilities(env, foldersRequest), saved };
@@ -135,7 +132,7 @@ describe('the checklist in the sign-in window', () => {
         expect(after.choices?.items[0]?.checked).toBe(true);
 
         await capabilities.auth.runSetupAction!('fav:111', 'toggle');
-        expect(saved[1]).toEqual({ selected: [], enabled: false });
+        expect(saved[1]).toEqual({ selected: [], enabled: true });
     });
 
     it('the buttons under the list answer it once', async () => {
@@ -143,7 +140,7 @@ describe('the checklist in the sign-in window', () => {
         await capabilities.auth.runSetupAction!('choices', 'all');
         expect(saved[0]).toEqual({ selected: ['fav:111', 'fav:222'], enabled: true, answered: true });
         await capabilities.auth.runSetupAction!('choices', 'none');
-        expect(saved[1]).toEqual({ selected: [], enabled: false, answered: true });
+        expect(saved[1]).toEqual({ selected: [], enabled: true, answered: true });
         await capabilities.auth.runSetupAction!('choices', 'done');
         expect(saved[2]).toEqual({ answered: true });
     });

@@ -38,12 +38,19 @@ export const createFolderFilter = (folium: FoliumClientApi): FolderFilter => {
         id: SECTION_ID,
         label: labelOf('filter.page'),
         description: labelOf('filter.sectionNote'),
-        // 这三项就是存储：界面上不画表单，勾选在登录窗的清单里做。
+        // 这三项就是存储，勾选在登录窗的清单里做：面板只写一句去哪儿选，不画能改的表单（表单改了不会通知宿主重读）。
         settings: [
             { key: KEYS.enabled, type: 'boolean', defaultValue: false, label: labelOf('filter.enabled') },
             { key: KEYS.selected, type: 'text', defaultValue: '', label: labelOf('filter.selected') },
             { key: KEYS.answered, type: 'boolean', defaultValue: false, label: labelOf('filter.done') },
         ],
+        settingsPanel: (container: HTMLElement) => {
+            const note = document.createElement('p');
+            note.textContent = text('filter.pageNote');
+            note.style.cssText = 'padding:12px 0 4px;font-size:12px;line-height:1.7;opacity:.75;';
+            container.append(note);
+            return () => { note.remove(); };
+        },
     });
 
     /**

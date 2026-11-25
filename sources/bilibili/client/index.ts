@@ -16,7 +16,6 @@ export default function activate(folium: FoliumClientApi): void {
         text: (key, params) => folium.i18n.key(key, params),
         translate: (key, params) => folium.i18n.text(key, params),
         error: (code, message, details) => folium.sources.error(code, message, details),
-        pageStore: sourceId => folium.sources.pageStore(sourceId),
         folderFilter: folders.api,
     }));
     // The choice changed: the host reads the account again, so the playlists follow it at once.

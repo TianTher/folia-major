@@ -2,7 +2,6 @@ import type {
     FoliumSourceError,
     FoliumSourceErrorCode,
     FoliumSourceErrorDetails,
-    FoliumSourcePageStore,
     FoliumText,
 } from '@folia/folium';
 
@@ -67,7 +66,6 @@ export interface BilibiliCoreEnv {
     text(key: string, params?: Record<string, string | number>): FoliumText;
     translate(key: string, params?: Record<string, string | number>): string;
     error(code: FoliumSourceErrorCode, message: string, details?: FoliumSourceErrorDetails): FoliumSourceError;
-    pageStore(sourceId: string): FoliumSourcePageStore;
     web?: BilibiliWebEnv;
     /** The folder filter; absent where there is no settings surface (then every folder shows). */
     folderFilter?: BilibiliFolderFilterApi;

@@ -56,6 +56,39 @@ describe('folder covers', () => {
         expect(kept['fav:111']).toBe('https://i0.hdslb.com/111.jpg@400w_400h_1c.webp');
     });
 
+    it('remembers a folder with no cover to be had, and stops asking for it', async () => {
+        const kept: Record<string, string> = {};
+        let folderPages = 0;
+        const request: BilibiliRequest = async (operation, params) => {
+            if (operation === 'nav') return { code: 0, data: { mid: 42 } };
+            if (operation === 'favFolders') {
+                return { code: 0, data: { count: 1, list: [{ id: 111, title: 'EMPTY', attr: 1, media_count: 3, cover: '' }] } };
+            }
+            if (operation === 'coversGet') return { code: 0, data: { ...kept } };
+            if (operation === 'favItems') {
+                folderPages += 1;
+                // 这一把收藏夹没有封面：resource/list 的 info.cover 是空串。
+                return { code: 0, data: { info: { media_count: 3, cover: '' }, medias: [], has_more: false } };
+            }
+            if (operation === 'coversPut') {
+                kept[String(params?.id)] = String(params?.cover);
+                return { code: 0, data: null };
+            }
+            return { code: 0, data: null };
+        };
+        const capabilities = createCapabilities(createEnv(), request);
+
+        const first = await capabilities.library.getUserPlaylists('42', 50, 0);
+        expect(first.items[0]?.coverUrl).toBeUndefined();
+        await new Promise(resolve => setTimeout(resolve, 80));
+        expect(kept['fav:111']).toBe('-');
+
+        // 第二次读账号：这一把已经记成"没有封面"，不该再为它请求一次。
+        const before = folderPages;
+        await capabilities.library.getUserPlaylists('42', 50, 0);
+        await new Promise(resolve => setTimeout(resolve, 80));
+        expect(folderPages).toBe(before);
+    });
     it('learns a folder’s cover from the page it opens, without a request of its own', async () => {
         const kept: Record<string, string> = {};
         const request: BilibiliRequest = async (operation, params) => {

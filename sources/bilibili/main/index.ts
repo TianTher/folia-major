@@ -15,6 +15,8 @@ const PASSPORT = 'https://passport.bilibili.com';
 const SESSION_KEY = 'bilibili_session';
 /** Folder covers learned once, kept across restarts so the account read never asks for them again. */
 const COVERS_KEY = 'bilibili_covers';
+/** 一个账号的收藏夹最多这么多把；再多就把最早的一把挤出去（理论上碰不到）。 */
+const COVERS_MAX_ENTRIES = 512;
 /** How long an audio address the source issued stays allowed to be read cross-origin. */
 const ISSUED_URL_TTL_MS = 2 * 60 * 60 * 1000;
 
@@ -271,10 +273,17 @@ export default function activate(api: FoliumSourceMainApi): void {
             const id = String(params.id ?? '');
             const cover = String(params.cover ?? '');
             if (!id || !cover) return { code: -400, message: 'coversPut: id and cover' };
+            // 一把收藏夹 id 加上一条封面地址；给上限，别让谁把这一格当无限存储写。
+            if (id.length > 64 || cover.length > 512) return { code: -400, message: 'coversPut: too long' };
             try {
                 const kept = (api.legacy.store.get(COVERS_KEY) as Record<string, string> | undefined) ?? {};
-                kept[id] = cover;
-                api.legacy.store.set(COVERS_KEY, kept);
+                const keys = Object.keys(kept);
+                const full = keys.length >= COVERS_MAX_ENTRIES && !(id in kept);
+                const next: Record<string, string> = full
+                    ? Object.fromEntries(keys.slice(1).map(key => [key, kept[key] ?? '']))
+                    : { ...kept };
+                next[id] = cover;
+                api.legacy.store.set(COVERS_KEY, next);
                 return { code: 0, data: null };
             } catch (error) {
                 return { code: -1, message: `coversPut: ${(error as Error).message}` };

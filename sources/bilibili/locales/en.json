@@ -24,5 +24,6 @@
     "filter.finish":  "Done",
     "filter.count":  "{{n}} videos",
     "filter.folder":  "{{name}}",
-    "filter.saved":  "Folders saved"
+    "filter.saved":  "Folders saved",
+    "filter.signedOut":  "Your sign-in has ended. Sign in again to choose folders."
 }

@@ -24,5 +24,6 @@
     "filter.finish":  "完成筛选",
     "filter.count":  "{{n}} 个视频",
     "filter.folder":  "{{name}}",
-    "filter.saved":  "筛选成功"
+    "filter.saved":  "筛选成功",
+    "filter.signedOut":  "登录已过期，重新登录后再筛选"
 }

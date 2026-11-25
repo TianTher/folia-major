@@ -96,9 +96,16 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
     const readAccount = async () => {
         const answer = await request('nav');
         const envelope = answer as { code?: number } | null;
-        if (envelope && typeof envelope === 'object' && envelope.code === -101) return null;
+        if (envelope && typeof envelope === 'object' && envelope.code === -101) {
+            // 没登录了：留着上一个账号的收藏夹列表，下一个登录的人会在清单里看见它。
+            folderRowsCache = null;
+            return null;
+        }
         const data = unwrapOrNull<{ isLogin?: boolean; mid?: number; uname?: string; face?: string; vipStatus?: number }>(answer, fail, 'nav');
-        if (!data || !data.isLogin || typeof data.mid !== 'number') return null;
+        if (!data || !data.isLogin || typeof data.mid !== 'number') {
+            folderRowsCache = null;
+            return null;
+        }
         return { id: String(data.mid), nickname: data.uname ?? '', avatarUrl: data.face, vipType: data.vipStatus };
     };
 
@@ -263,6 +270,12 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
     /** One warming run at a time: two account reads at once would ask for the same folder twice. */
     let warmingCovers = false;
 
+    /**
+     * The folder has no cover to be had: remembered as `NO_COVER` so it is not asked for again on every account read —
+     * a folder with an empty `data.info.cover` answered the same way 86 times otherwise (measured 2026-11-25).
+     */
+    const NO_COVER = '-';
+
     /** Warms the covers the cache does not have yet, slowly, after the account read has already been answered. */
     const warmFolderCovers = async (folders: FoliumSourceCollection[], known: Record<string, string>): Promise<void> => {
         if (warmingCovers) return;
@@ -270,11 +283,16 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
         try {
             const missing = folders.filter(folder => !known[folder.id]).slice(0, FOLDER_COVER_WARM_PER_READ);
             for (const folder of missing) {
-                const cover = await coverOfFolder(mediaIdOfFolder(folder.id));
-                if (cover) {
-                    known[folder.id] = cover;
-                    await rememberCover(folder.id, cover);
+                let cover: string | null = null;
+                try {
+                    cover = await coverOfFolder(mediaIdOfFolder(folder.id));
+                } catch {
+                    // 这一轮没读到（网络、限流）：下次再试，别记成"没有封面"。
+                    await new Promise<void>(resolve => { setTimeout(resolve, 400); });
+                    continue;
                 }
+                known[folder.id] = cover ?? NO_COVER;
+                await rememberCover(folder.id, known[folder.id]);
                 await new Promise<void>(resolve => { setTimeout(resolve, 400); });
             }
         } finally {
@@ -292,26 +310,28 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
     };
 
     /**
-     * The folder list, in the sign-in window itself: one step per folder, each with the action that checks or unchecks
-     * it. The host draws the list and re-draws it after every action, so this is the checklist — no page of its own, no
-     * second window (2026-11-25). Kept for the session: building it again for every toggle would ask bilibili again.
+     * The folder list, in the sign-in window itself: one row per folder. The host draws it and re-draws it after every
+     * action, so it is kept for a minute: building it again for every toggle would ask bilibili again, and keeping it
+     * for the whole session meant a folder made on bilibili never turned up in the checklist (2026-11-25).
      */
-    let folderRowsCache: Array<{ id: string; name: string; count?: number }> | null = null;
+    const FOLDER_ROWS_MAX_AGE_MS = 60 * 1000;
+    let folderRowsCache: { rows: Array<{ id: string; name: string; count?: number }>; at: number } | null = null;
 
     const folderRows = async (): Promise<Array<{ id: string; name: string; count?: number }>> => {
-        if (folderRowsCache) return folderRowsCache;
+        if (folderRowsCache && Date.now() - folderRowsCache.at < FOLDER_ROWS_MAX_AGE_MS) return folderRowsCache.rows;
         const nav = unwrapOrNull<{ mid?: number }>(await request('nav'), fail, 'nav');
         const mid = nav?.mid;
         if (typeof mid !== 'number') return [];
         const data = unwrapOrNull<{ list?: BilibiliFolder[] | null }>(
             await request('favFolders', { up_mid: mid }), fail, 'favFolders',
         );
-        folderRowsCache = (data?.list ?? []).map(folder => ({
+        const rows = (data?.list ?? []).map(folder => ({
             id: folderSongId(folder.id),
             name: String(folder.title || folder.id || ''),
             count: typeof folder.media_count === 'number' ? folder.media_count : undefined,
         }));
-        return folderRowsCache;
+        folderRowsCache = { rows, at: Date.now() };
+        return rows;
     };
 
     /**
@@ -320,15 +340,28 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
      */
     const folderSetupView = async (): Promise<FoliumSourceSetupView> => {
         const filter = env.folderFilter?.read();
-        const chosen = new Set((filter?.selected ?? []).filter(id => id.startsWith('fav:')));
+        const stored = (filter?.selected ?? []).filter(id => id.startsWith('fav:'));
+        const chosen = new Set(stored);
         let rows: Array<{ id: string; name: string; count?: number }> = [];
         let failed = false;
+        let signedOut = false;
         try {
             rows = await folderRows();
-        } catch {
+        } catch (error) {
             failed = true;
+            // 登录过期和"读不到"是两回事：前者要去重新登录，说"稍后再试"只会让人一直重试。
+            signedOut = (error as { code?: string } | null)?.code === 'auth-required';
         }
         if (!rows.length) failed = true;
+        // 账号里已经没有的收藏夹（删了、或者上一次筛选留下的旧 id）：从勾选里去掉，否则摘要比打勾的行多。
+        if (rows.length) {
+            const available = new Set(rows.map(row => row.id));
+            const kept = [...chosen].filter(id => available.has(id));
+            if (kept.length !== chosen.size) {
+                for (const id of [...chosen]) if (!available.has(id)) chosen.delete(id);
+                env.folderFilter?.save({ selected: kept });
+            }
+        }
         return {
             title: env.text('filter.title'),
             note: env.text('filter.note'),
@@ -340,9 +373,11 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
                     ...(row.count === undefined ? {} : { note: env.text('filter.count', { n: row.count }) }),
                     checked: chosen.has(row.id),
                 })),
-                summary: failed
-                    ? env.text('filter.failed')
-                    : env.text('filter.stepNote', { chosen: chosen.size }),
+                summary: signedOut
+                    ? env.text('filter.signedOut')
+                    : failed
+                        ? env.text('filter.failed')
+                        : env.text('filter.stepNote', { chosen: chosen.size }),
                 actions: [
                     { id: 'all', label: env.text('filter.selectAll') },
                     { id: 'none', label: env.text('filter.selectNone') },
@@ -363,7 +398,8 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
             // Local only: no request to bilibili happens on the account read's path.
             const known = await readCachedCovers();
             for (const item of items) {
-                if (!item.coverUrl && known[item.id]) item.coverUrl = known[item.id];
+                const kept = known[item.id];
+                if (!item.coverUrl && kept && kept !== NO_COVER) item.coverUrl = kept;
             }
             void warmFolderCovers(folders, known);
             return { items, total: folders.length, hasMore: offset + limit < folders.length };

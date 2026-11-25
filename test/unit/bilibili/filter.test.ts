@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { BilibiliCoreEnv, BilibiliFolderFilter, BilibiliRequest } from '../../../sources/bilibili/core/bilibiliApi';
 import { createCapabilities } from '../../../sources/bilibili/core/bilibiliCapabilities';
 
@@ -90,6 +90,38 @@ describe('the step offered after a sign-in', () => {
     });
 });
 
+describe('the folder list the checklist reads', () => {
+    const countingRequest = () => {
+        const calls: string[] = [];
+        const request: BilibiliRequest = async (operation) => {
+            calls.push(operation);
+            if (operation === 'nav') return { code: 0, data: { mid: 42 } };
+            if (operation === 'favFolders') {
+                return { code: 0, data: { count: 1, list: [{ id: 111, title: 'MUSIC', attr: 1, media_count: 2, cover: '' }] } };
+            }
+            return { code: 0, data: null };
+        };
+        return { request, calls };
+    };
+
+    it('asks the platform again once the list is a minute old', async () => {
+        const { request, calls } = countingRequest();
+        const capabilities = createCapabilities(createEnv({ enabled: false, selected: [], answered: false }), request);
+        await capabilities.auth.getSetup!();
+        await capabilities.auth.getSetup!();
+        expect(calls.filter(name => name === 'favFolders')).toHaveLength(1);
+
+        const now = Date.now();
+        const spy = vi.spyOn(Date, 'now').mockReturnValue(now + 61_000);
+        try {
+            await capabilities.auth.getSetup!();
+        } finally {
+            spy.mockRestore();
+        }
+        // 一分钟之后再打开清单：刚在 bilibili 上建的收藏夹要能看见。
+        expect(calls.filter(name => name === 'favFolders')).toHaveLength(2);
+    });
+});
 describe('the checklist in the sign-in window', () => {
     const foldersRequest: BilibiliRequest = async (operation) => {
         if (operation === 'nav') return { code: 0, data: { mid: 42 } };
@@ -115,6 +147,38 @@ describe('the checklist in the sign-in window', () => {
         return { capabilities: createCapabilities(env, foldersRequest), saved };
     };
 
+    it('drops the folders the account no longer has, so the count matches the rows', async () => {
+        const saved: Array<Record<string, unknown>> = [];
+        const env = {
+            ...(createEnv() as unknown as Record<string, unknown>),
+            folderFilter: {
+                read: () => ({ enabled: true, selected: ['fav:111', 'fav:999'], answered: true }),
+                save: (patch: Record<string, unknown>) => { saved.push(patch); },
+                open: () => undefined,
+            },
+        } as unknown as BilibiliCoreEnv;
+        const request: BilibiliRequest = async (operation) => {
+            if (operation === 'nav') return { code: 0, data: { mid: 42 } };
+            if (operation === 'favFolders') {
+                return { code: 0, data: { count: 1, list: [{ id: 111, title: 'MUSIC', attr: 1, media_count: 2, cover: '' }] } };
+            }
+            return { code: 0, data: null };
+        };
+        const view = (await createCapabilities(env, request).auth.getSetup!())!;
+        expect(view.choices?.items.map(item => item.checked)).toEqual([true]);
+        expect(saved[0]).toEqual({ selected: ['fav:111'] });
+    });
+    it('says the sign-in ended when the platform answers -101, not "try again later"', async () => {
+        const request: BilibiliRequest = async (operation) => {
+            if (operation === 'nav') return { code: 0, data: { mid: 42 } };
+            if (operation === 'favFolders') return { code: -101, message: 'not signed in' };
+            return { code: 0, data: null };
+        };
+        const env = createEnv({ enabled: false, selected: [], answered: false });
+        const view = (await createCapabilities(env, request).auth.getSetup!())!;
+        expect(view.choices?.items).toEqual([]);
+        expect(view.choices?.summary).toBe('filter.signedOut');
+    });
     it('one compact row per folder, the buttons under the list', async () => {
         const { capabilities } = withFilter();
         const view = (await capabilities.auth.getSetup!())!;

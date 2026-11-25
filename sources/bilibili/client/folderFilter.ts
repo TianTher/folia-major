@@ -40,12 +40,13 @@ export interface FolderFilter {
 export const createFolderFilter = (folium: FoliumClientApi): FolderFilter => {
     const text = (key: string, params?: Record<string, string | number>) => folium.i18n.text(key, params);
 
-    /** Read once at start, kept here: the account read asks for it often and it changes only when the page saves. */
-    let state: BilibiliFolderFilter = { enabled: false, selected: [], answered: false };
-
-    const loadState = (): void => {
+    /**
+     * The values are read from the section every time: it is the host that keeps them, and a copy made at start can be
+     * older than what is stored (and a save built on that copy would wipe the choice — measured 2026-11-25).
+     */
+    const readFilter = (): BilibiliFolderFilter => {
         const values = section.settings.get() as Record<string, unknown>;
-        state = {
+        return {
             enabled: values[KEYS.enabled] === true,
             selected: String(values[KEYS.selected] ?? '').split(',').map(part => part.trim()).filter(Boolean),
             answered: values[KEYS.answered] === true,
@@ -55,11 +56,11 @@ export const createFolderFilter = (folium: FoliumClientApi): FolderFilter => {
     let notifyHost: (() => void) | null = null;
 
     const saveState = (patch: Partial<BilibiliFolderFilter>): void => {
-        state = { ...state, ...patch };
+        const next = { ...readFilter(), ...patch };
         section.settings.set({
-            [KEYS.enabled]: state.enabled,
-            [KEYS.selected]: state.selected.join(','),
-            [KEYS.answered]: state.answered,
+            [KEYS.enabled]: next.enabled,
+            [KEYS.selected]: next.selected.join(','),
+            [KEYS.answered]: next.answered,
         });
         // Only when the list is done: a single checkbox keeps the list itself in step, and 86 re-reads would be rude.
         if (patch.answered !== undefined) notifyHost?.();
@@ -115,7 +116,7 @@ export const createFolderFilter = (folium: FoliumClientApi): FolderFilter => {
         };
 
         let rows: FolderRow[] = [];
-        let chosen = new Set(state.selected);
+        let chosen = new Set(readFilter().selected);
         let query = '';
 
         const updateSummary = () => {
@@ -196,10 +197,9 @@ export const createFolderFilter = (folium: FoliumClientApi): FolderFilter => {
     });
 
     // The values are the storage; read them once the section (and so the schema) exists.
-    loadState();
 
     const api: BilibiliFolderFilterApi = {
-        read: () => state,
+        read: readFilter,
         save: saveState,
         open: () => folium.ui.openSettings?.('mods'),
     };

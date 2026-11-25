@@ -902,6 +902,8 @@ export interface FoliumSourceSetupView {
      * `runSetupAction('choices', action id)`.
      */
     choices?: FoliumSourceSetupChoices;
+    /** Folium 2.3: the account's own data changed — read the account again before drawing it. */
+    reload?: boolean;
     /** Every step is done. */
     complete: boolean;
     /** What the source says to the action just done. */

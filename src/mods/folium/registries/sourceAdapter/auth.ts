@@ -93,6 +93,7 @@ const setupOf = (kit: SourceAdapterKit, value: unknown): ProviderSetupView | nul
                 } : {}),
             }];
         }),
+        ...(view.reload === true ? { reload: true } : {}),
         complete: view.complete === true,
         ...(message && TONES.has(text(message.tone))
             ? { message: { key: kit.key(message.text, 'setup.message') ?? '', tone: message.tone as 'ok' | 'warn' | 'error' } }

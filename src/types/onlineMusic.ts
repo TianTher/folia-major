@@ -654,6 +654,8 @@ export interface ProviderSetupView {
     steps: ProviderSetupStep[];
     /** 可以逐行勾选的清单：一行一个，按钮钉在列表下面（几十上百行时用它，别用 steps）。 */
     choices?: ProviderSetupChoices;
+    /** 账号自己的数据变了：读完再画（清单上的勾选会决定歌单里有什么）。 */
+    reload?: boolean;
     /** 每一步都做完了：可以结束。 */
     complete: boolean;
     /** 平台对刚做的那一个操作说的话（i18n key）；没有可说的就不给。 */

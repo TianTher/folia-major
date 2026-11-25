@@ -198,11 +198,11 @@ const SetupChoiceList: React.FC<{
             {choices.summaryKey && (
                 <p className="mb-1.5 text-xs leading-[18px] text-[color:var(--st-t2)]">{t(choices.summaryKey)}</p>
             )}
-            <div className="max-h-[42vh] overflow-y-auto rounded-[10px] border border-[var(--st-line)]">
+            <div className="max-h-[168px] overflow-y-auto rounded-[10px] border border-[var(--st-line)]">
                 <ul className="m-0 list-none p-0">
                     {choices.items.map(item => (
                         <li key={item.id} className="border-b border-[var(--st-line)] last:border-b-0">
-                            <label className={`flex cursor-pointer items-center gap-2.5 px-3 py-1.5 ${busy ? 'opacity-60' : ''}`}>
+                            <label className={`flex cursor-pointer items-center gap-2.5 px-3 py-1 ${busy ? 'opacity-60' : ''}`}>
                                 <input
                                     type="checkbox"
                                     className="h-3.5 w-3.5 shrink-0 accent-[var(--login-pc)]"

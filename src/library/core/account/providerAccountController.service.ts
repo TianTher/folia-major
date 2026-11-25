@@ -712,6 +712,14 @@ export const createProviderAccountController = (deps: LibraryAccountControllerDe
                     setup = { ...setup!, busy: false };
                 }
             });
+            // 清单上的选择改了平台给的东西（歌单、分组）：这副账号要重新读一遍，不然看到的还是旧的。
+            if (view.reload === true) {
+                try {
+                    await providerAccounts.refresh(providerId, 'sync');
+                } catch (error) {
+                    log('warn', 'setup:reload-error', { providerId, ...describeLoginError(error) });
+                }
+            }
             return { status: 'done' };
         } catch (error) {
             log('warn', 'setup:action-error', { providerId, stepId, actionId, ...describeLoginError(error) });

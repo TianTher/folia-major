@@ -201,7 +201,10 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
                 else selected.add(stepId);
                 filter.save({ selected: [...selected], enabled: selected.size > 0 });
             }
-            return await folderSetupView();
+            const view = await folderSetupView();
+            // 全选/全不选/完成都会改「歌单里有什么」：宿主得把这副账号重新读一遍才看得见。
+            if (stepId === 'choices') view.reload = true;
+            return view;
         },
     };
 

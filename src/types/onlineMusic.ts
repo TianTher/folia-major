@@ -652,10 +652,19 @@ export interface ProviderSetupView {
     noteKey?: string;
     params?: Record<string, string | number>;
     steps: ProviderSetupStep[];
+    /** 可以逐行勾选的清单：一行一个，按钮钉在列表下面（几十上百行时用它，别用 steps）。 */
+    choices?: ProviderSetupChoices;
     /** 每一步都做完了：可以结束。 */
     complete: boolean;
     /** 平台对刚做的那一个操作说的话（i18n key）；没有可说的就不给。 */
     message?: { key: string; tone: 'ok' | 'warn' | 'error' };
+}
+
+/** 配置清单里的勾选列表。 */
+export interface ProviderSetupChoices {
+    items: Array<{ id: string; labelKey: string; noteKey?: string; checked: boolean }>;
+    actions: Array<{ id: string; labelKey: string; primary?: boolean }>;
+    summaryKey?: string;
 }
 
 // —— 表单式登录（账号密码类平台）——

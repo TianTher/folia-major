@@ -184,10 +184,18 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
         async runSetupAction(stepId, actionId) {
             const filter = env.folderFilter;
             if (!filter) return await folderSetupView();
-            if (stepId === 'done') {
-                filter.save(actionId === 'all' ? { enabled: false, answered: true } : { answered: true });
+            if (stepId === 'choices') {
+                if (actionId === 'all') {
+                    const rows = await folderRows().catch(() => []);
+                    filter.save({ selected: rows.map(row => row.id), enabled: rows.length > 0, answered: true });
+                } else if (actionId === 'none') {
+                    filter.save({ selected: [], enabled: false, answered: true });
+                } else {
+                    // Done: the answer is in; the host reads the account again when it changes.
+                    filter.save({ answered: true });
+                }
             } else {
-                // One folder's line: checking it puts the folder in, checking it again takes it out.
+                // One row: ticking it puts the folder in, ticking it again takes it out.
                 const selected = new Set(filter.read().selected);
                 if (selected.has(stepId)) selected.delete(stepId);
                 else selected.add(stepId);
@@ -292,7 +300,9 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
     const visibleFolders = (folders: FoliumSourceCollection[]): FoliumSourceCollection[] => {
         const filter = env.folderFilter?.read();
         if (!filter || !filter.enabled) return folders;
-        return folders.filter(folder => filter.selected.includes(folder.id));
+        // Only real folder ids: an older build could save the row that finishes the list as if it were a folder.
+        const wanted = new Set(filter.selected.filter(id => id.startsWith('fav:')));
+        return folders.filter(folder => wanted.has(folder.id));
     };
 
     /**
@@ -300,61 +310,59 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
      * it. The host draws the list and re-draws it after every action, so this is the checklist — no page of its own, no
      * second window (2026-11-25). Kept for the session: building it again for every toggle would ask bilibili again.
      */
-    let folderStepsCache: FoliumSourceSetupStep[] | null = null;
+    let folderRowsCache: Array<{ id: string; name: string; count?: number }> | null = null;
 
-    const folderSteps = async (): Promise<FoliumSourceSetupStep[]> => {
-        if (folderStepsCache) return folderStepsCache;
+    const folderRows = async (): Promise<Array<{ id: string; name: string; count?: number }>> => {
+        if (folderRowsCache) return folderRowsCache;
         const nav = unwrapOrNull<{ mid?: number }>(await request('nav'), fail, 'nav');
         const mid = nav?.mid;
         if (typeof mid !== 'number') return [];
         const data = unwrapOrNull<{ list?: BilibiliFolder[] | null }>(
             await request('favFolders', { up_mid: mid }), fail, 'favFolders',
         );
-        const folders = data?.list ?? [];
-        folderStepsCache = folders.map(folder => ({
+        folderRowsCache = (data?.list ?? []).map(folder => ({
             id: folderSongId(folder.id),
-            title: env.text('filter.folder', { name: String(folder.title ?? folder.id ?? '') }),
-            detail: typeof folder.media_count === 'number'
-                ? env.translate('filter.count', { n: folder.media_count })
-                : undefined,
-            state: 'todo',
-            actions: [{ id: 'toggle', label: env.text('filter.toggle'), kind: 'run' }],
+            name: String(folder.title ?? folder.id ?? ''),
+            count: typeof folder.media_count === 'number' ? folder.media_count : undefined,
         }));
-        return folderStepsCache;
+        return folderRowsCache;
     };
 
+    /**
+     * The checklist itself: one compact row per folder, the buttons pinned under it by the host. A row is not a step —
+     * a step is three lines of words with its button under them, which put the buttons past the fold at 86 folders.
+     */
     const folderSetupView = async (): Promise<FoliumSourceSetupView> => {
         const filter = env.folderFilter?.read();
-        const chosen = new Set(filter?.selected ?? []);
-        let steps: FoliumSourceSetupStep[] = [];
+        const chosen = new Set((filter?.selected ?? []).filter(id => id.startsWith('fav:')));
+        let rows: Array<{ id: string; name: string; count?: number }> = [];
+        let failed = false;
         try {
-            steps = await folderSteps();
-        } catch (error) {
-            // Say it on the panel rather than showing nothing: an empty list looks like the feature is missing.
-            steps = [{ id: 'failed', title: env.text('filter.failed'), state: 'error' } as FoliumSourceSetupStep];
+            rows = await folderRows();
+        } catch {
+            failed = true;
         }
-        if (!steps.length) {
-            steps = [{ id: 'empty', title: env.text('filter.failed'), state: 'warn' } as FoliumSourceSetupStep];
-        }
-        const marked = steps.map(step => ({
-            ...step,
-            state: chosen.has(step.id) ? ('done' as const) : ('todo' as const),
-            actions: [{ id: 'toggle', label: chosen.has(step.id) ? env.text('filter.off') : env.text('filter.on'), kind: 'run' as const }],
-        }));
-        marked.push({
-            id: 'done',
-            title: env.text('filter.finish'),
-            note: env.text('filter.stepNote', { chosen: chosen.size }),
-            state: filter?.answered ? 'done' : 'todo',
-            actions: [
-                { id: 'done', label: env.text('filter.finish'), kind: 'run' },
-                { id: 'all', label: env.text('filter.all'), kind: 'run' },
-            ],
-        });
+        if (!rows.length) failed = true;
         return {
             title: env.text('filter.title'),
-            note: env.translate('filter.note'),
-            steps: marked,
+            note: env.text('filter.note'),
+            steps: [],
+            choices: {
+                items: rows.map(row => ({
+                    id: row.id,
+                    label: env.text('filter.folder', { name: row.name }),
+                    ...(row.count === undefined ? {} : { note: env.text('filter.count', { n: row.count }) }),
+                    checked: chosen.has(row.id),
+                })),
+                summary: failed
+                    ? env.text('filter.failed')
+                    : env.text('filter.stepNote', { chosen: chosen.size }),
+                actions: [
+                    { id: 'all', label: env.text('filter.selectAll') },
+                    { id: 'none', label: env.text('filter.selectNone') },
+                    { id: 'done', label: env.text('filter.finish'), primary: true },
+                ],
+            },
             // Never complete on open: the host folds the checklist away when it is, and this list is the feature.
             complete: false,
         };

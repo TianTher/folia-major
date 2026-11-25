@@ -894,10 +894,48 @@ export interface FoliumSourceSetupView {
     note?: FoliumText;
     /** The steps. */
     steps: FoliumSourceSetupStep[];
+    /**
+     * Folium 2.3: a list to tick through, drawn in the window as one compact row each with one line of small text and a
+     * row of buttons pinned under it — for a choice over many things (which collections to offer), where the steps
+     * above (a line of words and a button per row) would be three rows tall and put its buttons past the fold.
+     * Ticking a row calls `runSetupAction(row id, 'toggle')`; the buttons under the list call
+     * `runSetupAction('choices', action id)`.
+     */
+    choices?: FoliumSourceSetupChoices;
     /** Every step is done. */
     complete: boolean;
     /** What the source says to the action just done. */
     message?: { text: FoliumText; tone: 'ok' | 'warn' | 'error' };
+}
+
+/** Folium 2.3: the tickable list of a setup view. */
+export interface FoliumSourceSetupChoices {
+    /** The rows, in the order they are drawn. */
+    items: FoliumSourceSetupChoice[];
+    /** The buttons pinned under the list. */
+    actions: FoliumSourceSetupChoiceAction[];
+    /** A line above the list, e.g. how many are ticked. */
+    summary?: FoliumText;
+}
+
+/** Folium 2.3: one tickable row. */
+export interface FoliumSourceSetupChoice {
+    /** Its id, handed back to `runSetupAction`. */
+    id: string;
+    /** What the row says. */
+    label: FoliumText;
+    /** A second, smaller line: a count, a date. */
+    note?: FoliumText;
+    /** Ticked now. */
+    checked: boolean;
+}
+
+/** Folium 2.3: a button under the list. */
+export interface FoliumSourceSetupChoiceAction {
+    /** Its id, handed back to `runSetupAction` with `'choices'` as the step. */
+    id: string;
+    label: FoliumText;
+    primary?: boolean;
 }
 
 /** Folium 2: a line of a sign-in diagnostic report. The host cleans it; nothing private. */

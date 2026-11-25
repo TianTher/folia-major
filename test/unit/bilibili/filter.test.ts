@@ -81,8 +81,8 @@ describe('the step offered after a sign-in', () => {
                 open: () => undefined,
             },
         } as unknown as BilibiliCoreEnv;
-        const setup = await createCapabilities(env, request).auth.runSetupAction!('done', 'all');
-        expect(saved[0]).toEqual({ enabled: false, answered: true });
+        const setup = await createCapabilities(env, request).auth.runSetupAction!('choices', 'none');
+        expect(saved[0]).toEqual({ selected: [], enabled: false, answered: true });
         expect(setup.complete).toBe(false);
     });
 });
@@ -113,31 +113,33 @@ describe('the checklist in the sign-in window', () => {
         return { capabilities: createCapabilities(env, foldersRequest), saved };
     };
 
-    it('one step per folder, plus the one that finishes', async () => {
+    it('one compact row per folder, the buttons under the list', async () => {
         const { capabilities } = withFilter();
         const view = (await capabilities.auth.getSetup!())!;
-        expect(view.steps).toHaveLength(3);
-        expect(view.steps[0]?.id).toBe('fav:111');
-        expect(view.steps.at(-1)?.id).toBe('done');
+        expect(view.choices?.items.map(item => item.id)).toEqual(['fav:111', 'fav:222']);
+        expect(view.choices?.items.every(item => item.checked === false)).toBe(true);
+        expect(view.choices?.actions.map(action => action.id)).toEqual(['all', 'none', 'done']);
         // The list is never folded away on open: the host hides a complete checklist and this list IS the feature.
         expect(view.complete).toBe(false);
     });
 
-    it('checking a folder writes it, checking it again takes it out', async () => {
+    it('ticking a row writes it, ticking it again takes it out', async () => {
         const { capabilities, saved } = withFilter();
         const after = await capabilities.auth.runSetupAction!('fav:111', 'toggle');
         expect(saved[0]).toEqual({ selected: ['fav:111'], enabled: true });
-        expect(after.steps[0]?.state).toBe('done');
+        expect(after.choices?.items[0]?.checked).toBe(true);
 
         await capabilities.auth.runSetupAction!('fav:111', 'toggle');
         expect(saved[1]).toEqual({ selected: [], enabled: false });
     });
 
-    it('finishing writes the answer, so it is only offered once', async () => {
+    it('the buttons under the list answer it once', async () => {
         const { capabilities, saved } = withFilter();
-        await capabilities.auth.runSetupAction!('done', 'done');
-        expect(saved[0]).toEqual({ answered: true });
-        await capabilities.auth.runSetupAction!('done', 'all');
-        expect(saved[1]).toEqual({ enabled: false, answered: true });
+        await capabilities.auth.runSetupAction!('choices', 'all');
+        expect(saved[0]).toEqual({ selected: ['fav:111', 'fav:222'], enabled: true, answered: true });
+        await capabilities.auth.runSetupAction!('choices', 'none');
+        expect(saved[1]).toEqual({ selected: [], enabled: false, answered: true });
+        await capabilities.auth.runSetupAction!('choices', 'done');
+        expect(saved[2]).toEqual({ answered: true });
     });
 });

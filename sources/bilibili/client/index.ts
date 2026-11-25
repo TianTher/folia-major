@@ -14,7 +14,7 @@ export default function activate(folium: FoliumClientApi): void {
         modId: 'bilibili',
         call: <T>(name: string, ...args: unknown[]) => folium.rpc.call<T>(name, ...args),
         text: (key, params) => folium.i18n.key(key, params),
-        translate: key => folium.i18n.text(key),
+        translate: (key, params) => folium.i18n.text(key, params),
         error: (code, message, details) => folium.sources.error(code, message, details),
         pageStore: sourceId => folium.sources.pageStore(sourceId),
         folderFilter: folders.api,

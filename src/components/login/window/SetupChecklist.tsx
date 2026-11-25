@@ -136,6 +136,16 @@ export const SetupChecklist: React.FC<SetupChecklistProps> = ({ view, busy, onAc
     const mounted = useRef(true);
     useEffect(() => () => { mounted.current = false; }, []);
 
+    // 清单出现在登录窗的中段，上面还有平台那一幅画：步骤多的清单（一家收藏夹几十上百行）第一屏会落在可视区下面，
+    // 看着像什么也没有。打开时把它滚到顶，第一行就在眼前。
+    const box = useRef<HTMLDivElement | null>(null);
+    const firstRun = useRef(true);
+    useEffect(() => {
+        if (!firstRun.current) return;
+        firstRun.current = false;
+        box.current?.scrollIntoView({ block: 'start' });
+    }, []);
+
     const run = async (step: ProviderSetupStep, action: ProviderSetupAction, value?: string): Promise<boolean> => {
         const key = `${step.id}:${action.id}`;
         setRunning(key);
@@ -147,15 +157,84 @@ export const SetupChecklist: React.FC<SetupChecklistProps> = ({ view, busy, onAc
     };
 
     return (
-        <div className="mt-5 border-t border-[var(--st-line)] pt-1">
-            <ol className="m-0 list-none p-0">
-                {view.steps.map((step, index) => (
-                    <SetupStepRow key={step.id} step={step} index={index} busy={busy} running={running} run={run} />
-                ))}
-            </ol>
+        <div ref={box} className="mt-5 border-t border-[var(--st-line)] pt-1">
+            {view.choices && (
+                <SetupChoiceList
+                    choices={view.choices}
+                    busy={busy}
+                    onToggle={id => { void onAction(id, 'toggle'); }}
+                    onAction={id => { void onAction('choices', id); }}
+                />
+            )}
+            {view.steps.length > 0 && (
+                <ol className="m-0 list-none p-0">
+                    {view.steps.map((step, index) => (
+                        <SetupStepRow key={step.id} step={step} index={index} busy={busy} running={running} run={run} />
+                    ))}
+                </ol>
+            )}
             {view.message && (
                 <div className="pb-1 pt-2">
                     <Status tone={view.message.tone}>{t(view.message.key, view.params)}</Status>
+                </div>
+            )}
+        </div>
+    );
+};
+
+/**
+ * 一行一个的勾选列表：名字一行、小字一行，滚动区只包住列表本身，按钮钉在它下面（不随滚动跑掉）。
+ * 几十上百行时用它，别用 steps —— 那种一步是三行字加一个按钮，按钮会跑到折叠线以下。
+ */
+const SetupChoiceList: React.FC<{
+    choices: NonNullable<ProviderSetupView['choices']>;
+    busy: boolean;
+    onToggle: (id: string) => void;
+    onAction: (id: string) => void;
+}> = ({ choices, busy, onToggle, onAction }) => {
+    const { t } = useTranslation();
+    return (
+        <div className="mt-2">
+            {choices.summaryKey && (
+                <p className="mb-1.5 text-xs leading-[18px] text-[color:var(--st-t2)]">{t(choices.summaryKey)}</p>
+            )}
+            <div className="max-h-[42vh] overflow-y-auto rounded-[10px] border border-[var(--st-line)]">
+                <ul className="m-0 list-none p-0">
+                    {choices.items.map(item => (
+                        <li key={item.id} className="border-b border-[var(--st-line)] last:border-b-0">
+                            <label className={`flex cursor-pointer items-center gap-2.5 px-3 py-1.5 ${busy ? 'opacity-60' : ''}`}>
+                                <input
+                                    type="checkbox"
+                                    className="h-3.5 w-3.5 shrink-0 accent-[var(--login-pc)]"
+                                    checked={item.checked}
+                                    disabled={busy}
+                                    onChange={() => onToggle(item.id)}
+                                />
+                                <span className="min-w-0 flex-1 truncate text-[12.5px] leading-[18px] text-[color:var(--st-t1)]">
+                                    {t(item.labelKey)}
+                                </span>
+                                {item.noteKey && (
+                                    <span className="shrink-0 text-[11px] leading-[18px] text-[color:var(--st-t2)] tabular-nums">
+                                        {t(item.noteKey)}
+                                    </span>
+                                )}
+                            </label>
+                        </li>
+                    ))}
+                </ul>
+            </div>
+            {choices.actions.length > 0 && (
+                <div className="mt-2 flex items-center gap-2 border-t border-[var(--st-line)] pt-2">
+                    {choices.actions.map(action => (
+                        <Button
+                            key={action.id}
+                            variant={action.primary ? 'primary' : 'quiet'}
+                            disabled={busy}
+                            onClick={() => onAction(action.id)}
+                        >
+                            {t(action.labelKey)}
+                        </Button>
+                    ))}
                 </div>
             )}
         </div>

@@ -40,9 +40,34 @@ const setupOf = (kit: SourceAdapterKit, value: unknown): ProviderSetupView | nul
     const view = record(value);
     if (!view) return null;
     const message = record(view.message);
+    const choices = record(view.choices);
     return {
         titleKey: kit.key(view.title, 'setup.title') ?? '',
         ...(view.note !== undefined ? { noteKey: kit.key(view.note, 'setup.note') } : {}),
+        ...(choices ? {
+            choices: {
+                items: list(choices.items).flatMap((item): NonNullable<ProviderSetupView['choices']>['items'] => {
+                    const row = record(item);
+                    if (!row) return [];
+                    return [{
+                        id: text(row.id),
+                        labelKey: kit.key(row.label, 'setup.choice') ?? '',
+                        ...(row.note !== undefined ? { noteKey: kit.key(row.note, 'setup.choice.note') } : {}),
+                        checked: row.checked === true,
+                    }];
+                }),
+                actions: list(choices.actions).flatMap((item): NonNullable<ProviderSetupView['choices']>['actions'] => {
+                    const action = record(item);
+                    if (!action) return [];
+                    return [{
+                        id: text(action.id),
+                        labelKey: kit.key(action.label, 'setup.choice.action') ?? '',
+                        ...(action.primary === true ? { primary: true } : {}),
+                    }];
+                }),
+                ...(choices.summary !== undefined ? { summaryKey: kit.key(choices.summary, 'setup.choice.summary') } : {}),
+            },
+        } : {}),
         steps: list(view.steps).flatMap((item): ProviderSetupStep[] => {
             const step = record(item);
             if (!step) return [];

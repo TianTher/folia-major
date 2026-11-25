@@ -15,7 +15,7 @@
     "filter.page":  "Folder filter",
     "filter.pageNote":  "Check the folders you want as playlists. Unchecked ones never appear under Playlists, and their covers are not fetched.",
     "filter.search":  "Search folders",
-    "filter.summary":  "{chosen} of {total} checked",
+    "filter.summary":  "{{chosen}} of {{total}} checked",
     "filter.loading":  "Reading your folders…",
     "filter.failed":  "Could not read the folders. Try again later.",
     "filter.selectAll":  "Check all",
@@ -24,12 +24,12 @@
     "filter.title":  "Which folders should show?",
     "filter.note":  "Bilibili is a video platform and most folders are not song lists. Check the ones you want to listen to; you can also keep showing everything.",
     "filter.step":  "Folder filter",
-    "filter.stepNote":  "{chosen} checked",
+    "filter.stepNote":  "{{chosen}} checked",
     "filter.open":  "Choose folders",
     "filter.all":  "Show everything",
     "filter.on":  "Check",
     "filter.off":  "Uncheck",
     "filter.finish":  "Done",
-    "filter.count":  "{n} videos",
+    "filter.count":  "{{n}} videos",
     "filter.folder":  "{{name}}"
 }

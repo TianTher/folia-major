@@ -38,7 +38,7 @@ export interface FolderFilter {
 }
 
 export const createFolderFilter = (folium: FoliumClientApi): FolderFilter => {
-    const text = (key: string) => folium.i18n.text(key);
+    const text = (key: string, params?: Record<string, string | number>) => folium.i18n.text(key, params);
 
     /** Read once at start, kept here: the account read asks for it often and it changes only when the page saves. */
     let state: BilibiliFolderFilter = { enabled: false, selected: [], answered: false };
@@ -119,9 +119,7 @@ export const createFolderFilter = (folium: FoliumClientApi): FolderFilter => {
         let query = '';
 
         const updateSummary = () => {
-            summary.textContent = text('filter.summary')
-                .replace('{chosen}', String(chosen.size))
-                .replace('{total}', String(rows.length));
+            summary.textContent = text('filter.summary', { chosen: chosen.size, total: rows.length });
         };
 
         const render = () => {
@@ -144,7 +142,7 @@ export const createFolderFilter = (folium: FoliumClientApi): FolderFilter => {
                 line.append(box, name);
                 if (row.count !== undefined) {
                     const count = document.createElement('span');
-                    count.textContent = text('filter.count').replace('{n}', String(row.count));
+                    count.textContent = text('filter.count', { n: row.count });
                     count.style.cssText = 'opacity:.55;font-size:12px;';
                     line.append(count);
                 }

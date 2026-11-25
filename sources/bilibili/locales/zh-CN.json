@@ -15,7 +15,7 @@
     "filter.page":  "收藏夹筛选",
     "filter.pageNote":  "勾选要用作歌单的收藏夹；没勾的不会出现在「歌单」里，也不会再去取封面。",
     "filter.search":  "搜索收藏夹",
-    "filter.summary":  "已选 {chosen} / {total}",
+    "filter.summary":  "已选 {{chosen}} / {{total}}",
     "filter.loading":  "正在读取收藏夹…",
     "filter.failed":  "收藏夹读取失败，稍后再试。",
     "filter.selectAll":  "全选",
@@ -24,12 +24,12 @@
     "filter.title":  "选一下要显示的收藏夹",
     "filter.note":  "B 站是视频平台，收藏夹里很多不是歌单。勾选要听的那些，之后只在「歌单」里显示它们；也可以选择全部显示。",
     "filter.step":  "收藏夹筛选",
-    "filter.stepNote":  "已选 {chosen} 个",
+    "filter.stepNote":  "已选 {{chosen}} 个",
     "filter.open":  "开始筛选",
     "filter.all":  "全部显示",
     "filter.on":  "选中",
     "filter.off":  "取消",
     "filter.finish":  "完成筛选",
-    "filter.count":  "{n} 个视频",
+    "filter.count":  "{{n}} 个视频",
     "filter.folder":  "{{name}}"
 }

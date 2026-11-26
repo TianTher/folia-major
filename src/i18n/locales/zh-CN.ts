@@ -9,7 +9,9 @@ export default {
     "previous": "上一页",
     "next": "下一页",
     "loading": "正在读取分 P…",
-    "failed": "分 P 读取失败，稍后再试"
+    "failed": "分 P 读取失败，稍后再试",
+    "badge": "{{total}}P",
+    "open": "打开分 P 列表"
   },  "sourcesSettings": {
     "groupList": "音源",
     "groupNotices": "接管与覆盖",

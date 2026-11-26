@@ -1,13 +1,13 @@
 import React from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import type { SongGroup, SongResult } from '../../../../types';
-import { omni } from '../../../../services/onlineMusic/omni';
-import { getSongGroup, getSongGroupLabel, getSongDurationMs } from '../../../../services/onlineMusic/songMetadata';
-import { getPlaybackSourceRef } from '../../../../utils/appPlaybackGuards';
-import ThemedDialog from '../../../../components/shared/ThemedDialog';
+import type { SongGroup, SongResult } from '../../types';
+import { omni } from '../../services/onlineMusic/omni';
+import { getSongGroup, getSongGroupLabel, getSongDurationMs } from '../../services/onlineMusic/songMetadata';
+import { getPlaybackSourceRef } from '../../utils/appPlaybackGuards';
+import ThemedDialog from './ThemedDialog';
 
-// src/library/suites/grid/shared/SongGroupPicker.tsx
+// src/components/shared/SongGroupPicker.tsx
 // 一个"行"里含着好几首歌时（B 站一个视频的各 P），点开这一行就是这份清单：两列、每页十个，点一个从它开始播，
 // 后面的同组歌曲跟着进队列 —— 于是"下一曲"就是下一 P，放到这一组最后一首之后才轮到下一行。
 // 盒子本身不排布卡片（网格是绝对定位的），所以展开是一层弹窗而不是行内长高；弹窗用项目自己的 ThemedDialog，

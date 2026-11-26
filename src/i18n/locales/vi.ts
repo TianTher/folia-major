@@ -9,7 +9,9 @@ export default {
     "previous": "Trước",
     "next": "Sau",
     "loading": "Đang đọc các phần…",
-    "failed": "Không đọc được các phần. Thử lại sau."
+    "failed": "Không đọc được các phần. Thử lại sau.",
+    "badge": "{{total}} phần",
+    "open": "Mở các phần"
   },  "sourcesSettings": {
     "groupList": "Nguồn",
     "groupNotices": "Tiếp quản và thay thế",

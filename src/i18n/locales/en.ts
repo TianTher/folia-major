@@ -9,7 +9,9 @@ export default {
     "previous": "Previous",
     "next": "Next",
     "loading": "Reading the parts…",
-    "failed": "Could not read the parts. Try again later."
+    "failed": "Could not read the parts. Try again later.",
+    "badge": "{{total}} parts",
+    "open": "Open the parts"
   },  "sourcesSettings": {
     "groupList": "Sources",
     "groupNotices": "Takeovers and overrides",

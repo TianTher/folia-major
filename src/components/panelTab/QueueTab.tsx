@@ -2,7 +2,8 @@ import React from 'react';
 import { List, useListRef, type RowComponentProps } from 'react-window';
 import { ListEnd, ListMusic, ListPlus, NotebookPen, PanelsTopLeft, Shuffle, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { SongResult } from '../../types';
+import { SongResult, type SongGroup } from '../../types';
+import type { OnlineProviderId } from '../../types/onlineMusic';
 import TextInputDialog from '../shared/TextInputDialog';
 import { Button } from '../modal/settings/kit';
 import { useKitReducedMotion } from '../modal/settings/kit/motion';
@@ -10,6 +11,7 @@ import { getSongTag, isSongShownUnplayable } from '../../services/onlineMusic/so
 import { getSongArtistLabel } from '../../services/onlineMusic/songMetadata';
 import { getPlaybackSongKey } from '../../utils/appPlaybackGuards';
 import { queueIndexOfKey } from '../../utils/playbackNeighbors';
+import SongGroupPicker, { groupOfTrack } from '../shared/SongGroupPicker';
 import { EmptyState } from './shell/EmptyState';
 import { PanelIconButton } from './shell/PanelIconButton';
 
@@ -49,19 +51,30 @@ interface QueueTabProps {
 
 type QueueRowProps = {
     playQueue: SongResult[];
+    /** 队列按「显示行」画：多 P 的连续几首合成一行，队列本身仍是逐首排的。 */
+    rows: QueueDisplayRow[];
     currentSongKey: string | null;
     onPlaySong: QueueTabProps['onPlaySong'];
     onMoveSongToNext: QueueTabProps['onMoveSongToNext'];
     onMoveSongToEnd: QueueTabProps['onMoveSongToEnd'];
     onRemoveSong: QueueTabProps['onRemoveSong'];
+    onOpenGroup: (row: Extract<QueueDisplayRow, { kind: 'group' }>) => void;
     labels: {
         unavailable: string;
         video: string;
         playNext: string;
         moveToEnd: string;
         remove: string;
+        /** 一行的分 P 个数，写成「12P」。 */
+        partsOf: (count: number) => string;
+        openParts: string;
     };
 };
+
+/** 队列里的一行：一首歌，或者连着排的好几首同组歌曲（一个视频的各 P）。 */
+type QueueDisplayRow =
+    | { kind: 'song'; queueIndex: number }
+    | { kind: 'group'; queueIndex: number; count: number; group: SongGroup; providerId: OnlineProviderId };
 
 // Kept outside QueueTab so track changes update row data without remounting hovered action buttons.
 const QueueRow = ({
@@ -69,14 +82,25 @@ const QueueRow = ({
     style,
     ariaAttributes,
     playQueue,
+    rows,
     currentSongKey,
     onPlaySong,
     onMoveSongToNext,
     onMoveSongToEnd,
     onRemoveSong,
+    onOpenGroup,
     labels,
 }: RowComponentProps<QueueRowProps>): React.ReactElement => {
-    const song = playQueue[index];
+    const row = rows[index];
+    const queueIndex = row?.queueIndex ?? index;
+    // 收起来的那一行里正好是正在播的那一 P 时，就照它画（名字、播放标记），点这一行也播它。
+    const activeInRun = row?.kind === 'group' && currentSongKey
+        ? playQueue
+            .slice(row.queueIndex, row.queueIndex + row.count)
+            .findIndex(item => getPlaybackSongKey(item) === currentSongKey)
+        : -1;
+    const song = playQueue[activeInRun >= 0 ? (row?.queueIndex ?? 0) + activeInRun : queueIndex];
+    if (!song) return <div style={style} />;
     const isActive = currentSongKey === getPlaybackSongKey(song);
     const isUnavailable = isSongShownUnplayable(song);
     const tag = getSongTag(song, labels);
@@ -93,6 +117,20 @@ const QueueRow = ({
             <div className={`min-w-0 flex-1 ${isUnavailable ? 'opacity-55' : ''}`}>
                 <div className="flex items-center gap-2 text-[13px] leading-[19px]">
                     <span className={`truncate ${isActive ? 'font-semibold' : ''}`}>{song.name}</span>
+                    {row.kind === 'group' && (
+                        // 分 P 很多时不让队列被撑爆：这里只给个数，点开是那一组的分 P 面板。
+                        <button
+                            type="button"
+                            aria-label={labels.openParts}
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                onOpenGroup(row);
+                            }}
+                            className="st-t-fast shrink-0 rounded bg-[var(--st-fill2)] px-[5px] py-px text-[11px] leading-[15px] text-[color:var(--st-t2)] hover:bg-[var(--st-accent)] hover:text-[color:var(--st-t1)]"
+                        >
+                            {labels.partsOf(row.count)}
+                        </button>
+                    )}
                     {tag && (
                         <span className="shrink-0 rounded bg-[var(--st-fill2)] px-[5px] py-px text-[11px] leading-[15px] text-[color:var(--st-t2)]">
                             {tag}
@@ -153,6 +191,32 @@ const QueueTab: React.FC<QueueTabProps> = ({
     const listHeight = `clamp(${Math.min(rowsPx, 2 * ROW_PX)}px, calc(var(--pn-tab-room, 100vh) - ${HEAD_PX}px), ${rowsPx}px)`;
 
     const listRef = useListRef(null);
+    const [openGroup, setOpenGroup] = React.useState<Extract<QueueDisplayRow, { kind: 'group' }> | null>(null);
+    // 队列按「显示行」画：连着排的同组歌曲（一个视频的各 P）只占一行，队列本身仍是逐首排的，下一曲照样是下一 P。
+    const displayRows = React.useMemo<QueueDisplayRow[]>(() => {
+        const rows: QueueDisplayRow[] = [];
+        for (let index = 0; index < playQueue.length; index += 1) {
+            const opened = groupOfTrack(playQueue[index]);
+            if (!opened) {
+                rows.push({ kind: 'song', queueIndex: index });
+                continue;
+            }
+            let count = 1;
+            for (let next = index + 1; next < playQueue.length; next += 1) {
+                const follow = groupOfTrack(playQueue[next]);
+                if (!follow || follow.group.id !== opened.group.id || follow.providerId !== opened.providerId) break;
+                count += 1;
+            }
+            // 只有一首在队列里（被打散过）就照普通一行画：一个「1P」的标记没有意义。
+            if (count === 1) {
+                rows.push({ kind: 'song', queueIndex: index });
+                continue;
+            }
+            rows.push({ kind: 'group', queueIndex: index, count, group: opened.group, providerId: opened.providerId });
+            index += count - 1;
+        }
+        return rows;
+    }, [playQueue]);
     const isInitialMountRef = React.useRef(true);
     const lastScrolledIndexRef = React.useRef<number>(-1);
     const wasOpenRef = React.useRef(false);
@@ -160,17 +224,21 @@ const QueueTab: React.FC<QueueTabProps> = ({
     const [hasMoreBelow, setHasMoreBelow] = React.useState(false);
     const rowProps = React.useMemo<QueueRowProps>(() => ({
         playQueue,
+        rows: displayRows,
         currentSongKey,
         onPlaySong,
         onMoveSongToNext,
         onMoveSongToEnd,
         onRemoveSong,
+        onOpenGroup: setOpenGroup,
         labels: {
             unavailable: t('status.songUnavailableTag'),
             video: t('status.songVideoTag'),
             playNext: t('queue.playNext'),
             moveToEnd: t('queue.moveToEnd'),
             remove: t('queue.remove'),
+            partsOf: (count: number) => t('songGroup.badge', { total: count }),
+            openParts: t('songGroup.open'),
         },
     }), [
         currentSongKey,
@@ -179,6 +247,7 @@ const QueueTab: React.FC<QueueTabProps> = ({
         onPlaySong,
         onRemoveSong,
         playQueue,
+        displayRows,
         t,
     ]);
 
@@ -206,7 +275,13 @@ const QueueTab: React.FC<QueueTabProps> = ({
     // Auto-scroll to current song
     React.useEffect(() => {
         if (shouldScrollToCurrent && currentSongKey && listRef.current) {
-            const currentIndex = queueIndexOfKey(playQueue, currentSongKey);
+            const queueIndexNow = queueIndexOfKey(playQueue, currentSongKey);
+            // 多 P 收成一行之后，列表里的行号与队列下标不再一一对应。
+            const currentIndex = queueIndexNow < 0 ? -1 : displayRows.findIndex(row => (
+                row.kind === 'group'
+                    ? queueIndexNow >= row.queueIndex && queueIndexNow < row.queueIndex + row.count
+                    : row.queueIndex === queueIndexNow
+            ));
             if (currentIndex >= 0) {
                 const isInitialMount = isInitialMountRef.current;
                 const songChanged = lastScrolledIndexRef.current !== currentIndex && lastScrolledIndexRef.current !== -1;
@@ -229,7 +304,7 @@ const QueueTab: React.FC<QueueTabProps> = ({
                 }, delay);
             }
         }
-    }, [shouldScrollToCurrent, currentSongKey, playQueue, listRef, reduced]);
+    }, [shouldScrollToCurrent, currentSongKey, playQueue, displayRows, listRef, reduced]);
 
     const handleSavePlaylist = async () => {
         if (!onSaveCurrentQueueAsPlaylist) {
@@ -275,7 +350,7 @@ const QueueTab: React.FC<QueueTabProps> = ({
                 <div ref={queueScrollRef}>
                     <List
                         listRef={listRef}
-                        rowCount={playQueue.length}
+                        rowCount={displayRows.length}
                         rowHeight={ROW_PX}
                         // The list measures itself after its first frame; until then it takes this height, so that frame has all its rows.
                         defaultHeight={rowsPx}
@@ -289,6 +364,20 @@ const QueueTab: React.FC<QueueTabProps> = ({
                     />
                 </div>
             </div>
+
+            {openGroup && (
+                <SongGroupPicker
+                    group={openGroup.group}
+                    providerId={openGroup.providerId}
+                    isDaylight={isDaylight}
+                    onClose={() => setOpenGroup(null)}
+                    onPlay={(track) => {
+                        setOpenGroup(null);
+                        // 队列已经逐首排着这些分 P：播这一首，队列原样不动。
+                        onPlaySong(track, playQueue);
+                    }}
+                />
+            )}
 
             <TextInputDialog
                 isOpen={isSaveDialogOpen}

@@ -89,7 +89,7 @@ interface ViewData {
     pic?: string;
     duration?: number;
     owner?: { mid?: number; name?: string; face?: string };
-    pages?: Array<{ cid?: number; page?: number; part?: string }>;
+    pages?: Array<{ cid?: number; page?: number; part?: string; duration?: number }>;
 }
 
 export interface BilibiliCapabilities {
@@ -496,6 +496,56 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
             );
             return data.info ? toCollection(data.info) : null;
         },
+        /**
+         * 一个视频的各 P，作为各自的歌：`bvid:p2` 这样一眼能看出是哪一 P，播放时 `idsOf` 会取那一 P 的 cid。
+         * 列表里那一行是整条视频（第一 P），展开它才读这里 —— 一次 `view`，宿主按 10 个一页问。
+         */
+        async getGroupTracks(groupId, limit, offset) {
+            const view = unwrapOrNull<ViewData>(await request('view', { bvid: groupId }), fail, 'view');
+            const pages = view?.pages ?? [];
+            if (!view || !pages.length) return { items: [], total: 0, hasMore: false };
+            const parts = pages.map((page, index) => partSong(view, page, index + 1, pages.length));
+            const size = Math.max(1, limit);
+            return {
+                items: parts.slice(offset, offset + size),
+                total: parts.length,
+                hasMore: offset + size < parts.length,
+            };
+        },
+    };
+
+    /**
+     * 一个视频的某一 P，作为独立的歌：id 是 `bvid:pN`（播的时候 `idsOf` 按 N 取 cid），标题在 P1 上就是视频标题，
+     * 其余 P 是「视频标题 · P 标题」，时长用那一 P 的（`view.pages[n].duration`，秒）。都带 `group`，宿主把它们
+     * 收在同一个视频那一行下面。
+     */
+    const partSong = (data: ViewData, page: { cid?: number; part?: string; duration?: number }, index: number, total: number): FoliumSourceSong => {
+        const bvid = data.bvid ?? String(data.aid ?? '');
+        const videoTitle = data.title ?? bvid;
+        const partTitle = typeof page.part === 'string' ? page.part.trim() : '';
+        const title = index === 1 || !partTitle || partTitle === videoTitle
+            ? videoTitle
+            : `${videoTitle} · ${partTitle}`;
+        const cover = data.pic ? data.pic.replace(/^http:/, 'https:') : undefined;
+        const songData: BilibiliSongData = {
+            avid: data.aid,
+            cid: page.cid ?? data.cid,
+            pages: total,
+            part: index,
+        };
+        return {
+            id: `${bvid}:p${index}`,
+            title,
+            artists: data.owner?.name
+                ? [{ id: String(data.owner.mid ?? ''), name: data.owner.name, ref: false }]
+                : [{ id: 'bilibili', name: 'bilibili', ref: false }],
+            album: { id: `up:${data.owner?.mid ?? 'none'}`, name: data.owner?.name ?? 'bilibili', coverUrl: cover, ref: false },
+            durationMs: typeof page.duration === 'number' && page.duration > 0 ? page.duration * 1000 : undefined,
+            coverUrl: cover,
+            kind: 'video',
+            group: { id: bvid, title: videoTitle, total, ...(cover ? { coverUrl: cover } : {}) },
+            data: songData as unknown as Record<string, never>,
+        };
     };
 
     const songFromView = (data: ViewData): FoliumSourceSong => {

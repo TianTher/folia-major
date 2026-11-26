@@ -15,6 +15,7 @@ export const buildCatalog = (kit: SourceAdapterKit, catalog: FoliumSourceCatalog
     const resolveSongCatalogRefs = catalog.resolveSongCatalogRefs?.bind(catalog);
     const getPlaylistTracks = catalog.getPlaylistTracks?.bind(catalog);
     const getPlaylistDetail = catalog.getPlaylistDetail?.bind(catalog);
+    const getGroupTracks = catalog.getGroupTracks?.bind(catalog);
     const getCloudTracks = catalog.getCloudTracks?.bind(catalog);
     const getListeningRankTracks = catalog.getListeningRankTracks?.bind(catalog);
     const getAlbumTracks = catalog.getAlbumTracks?.bind(catalog);
@@ -32,6 +33,9 @@ export const buildCatalog = (kit: SourceAdapterKit, catalog: FoliumSourceCatalog
         } : {}),
         ...(getPlaylistTracks ? {
             getPlaylistTracks: async (id, limit, offset, entry) => songs(offset)(await kit.run('getPlaylistTracks', () => getPlaylistTracks(String(id), limit, offset, of(entry)))),
+        } : {}),
+        ...(getGroupTracks ? {
+            getGroupTracks: async (groupId, limit, offset, entry) => songs(offset)(await kit.run('getGroupTracks', () => getGroupTracks(groupId, limit, offset, of(entry)))),
         } : {}),
         ...(getPlaylistDetail ? {
             getPlaylistDetail: async (id, entry) => kit.collection(await kit.run('getPlaylistDetail', () => getPlaylistDetail(String(id), of(entry)))),

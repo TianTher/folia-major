@@ -3,8 +3,9 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { motion, useMotionValue, animate, AnimatePresence, useDragControls, useIsPresent } from 'framer-motion';
 import { ChevronLeft, Crosshair, Disc, Download, ImagePlus, Play, Plus, Shuffle, Loader2, Heart, ListOrdered, ListPlus, NotebookPen, Pencil, RefreshCw, Trash2, Star, Tags } from 'lucide-react';
 import GridPanelToggleIndicator from '../shared/GridPanelToggleIndicator';
+import { SongGroupPicker, groupOfTrack } from '../shared/SongGroupPicker';
 import { useTranslation } from 'react-i18next';
-import { SongResult, type LocalSong, type StatusMessage, Theme, type UnifiedSong } from '../../../../types';
+import { SongResult, type LocalSong, type SongGroup, type StatusMessage, Theme, type UnifiedSong } from '../../../../types';
 import { getTrackSourceKey, getTrackSourceLabel, getTrackSwappedFromLabel, getTrackUnplayableLabel, TRACK_SWAPPED_MARK, isTrackShownUnplayable, readTrackSourcesVersion, subscribeTrackSources, trackSourceHue } from '../../../../services/foliaPlaylist/trackSourceState';
 import { formatSongName } from '../../../../utils/songNameFormatter';
 import { getSizedCoverUrl } from '../../../../utils/coverUrl';
@@ -124,6 +125,8 @@ interface GridViewProps {
     canSaveToPlaylist?: (track: SongResult) => boolean;
     onSelectAlbum?: (albumId: number | string, album?: any, track?: SongResult) => void;
     onSelectArtist?: (artistId: number | string, artist?: any, track?: SongResult) => void;
+    /** 一组歌（B 站一个视频的各 P）里点了一首：播它，后面的同组歌曲跟着进队列。 */
+    onPlaySongGroup?: (track: SongResult, queue: SongResult[]) => void;
     /**
      * 曲目的来源：加载、缓存、后台补页、错误与重新拉取都在资源里（见 library/core/collection/resource）。
      * 宿主持有它，切换 renderer 不会重新请求。
@@ -271,6 +274,7 @@ export const GridView: React.FC<GridViewProps> = ({
     canSaveToPlaylist,
     onSelectAlbum,
     onSelectArtist,
+    onPlaySongGroup,
     resource = null,
     mutations = null,
     localSongs,
@@ -589,6 +593,8 @@ export const GridView: React.FC<GridViewProps> = ({
         contextTracks: contextActionTracks,
         occurrences: trackOccurrences,
     } = collectionView;
+    // 一组歌（B 站一个视频的各 P）打开成浮层：网格里的卡片是绝对定位的，行内接不了子列表。
+    const [songGroupPicker, setSongGroupPicker] = useState<{ group: SongGroup; providerId: string } | null>(null);
 
     useEffect(() => {
         if (isDraggingRef.current || pendingFocusCommitTimeoutRef.current) return;
@@ -1220,6 +1226,10 @@ export const GridView: React.FC<GridViewProps> = ({
                                     if (item.rawTrack) void handleRemoveTrack(item.rawTrack, trackKey);
                                 }}
                                 onSelectArtist={onSelectArtist}
+                                onOpenGroup={(track) => {
+                                    const opened = groupOfTrack(track);
+                                    if (opened) setSongGroupPicker(opened);
+                                }}
                                 onSelectAlbum={onSelectAlbum}
                                 onBeforeNestedNavigate={() => {
                                     persistNavigationState(idx);
@@ -2363,6 +2373,17 @@ export const GridView: React.FC<GridViewProps> = ({
                             onCollect={onCollectTrack ? () => onCollectTrack(track) : undefined}
                         />
                     )}
+                />
+            )}
+            {songGroupPicker && (
+                <SongGroupPicker
+                    group={songGroupPicker.group}
+                    providerId={songGroupPicker.providerId}
+                    onClose={() => setSongGroupPicker(null)}
+                    onPlay={(track, queue) => {
+                        setSongGroupPicker(null);
+                        onPlaySongGroup?.(track, queue);
+                    }}
                 />
             )}
         </motion.div>

@@ -1,7 +1,16 @@
 
 
 export default {
-  "sourcesSettings": {
+
+  "songGroup": {
+    "parts": "{{total}} parts",
+    "page": "Page {{page}} of {{pages}}",
+    "close": "Close",
+    "previous": "Previous",
+    "next": "Next",
+    "loading": "Reading the parts…",
+    "failed": "Could not read the parts. Try again later."
+  },  "sourcesSettings": {
     "groupList": "Sources",
     "groupNotices": "Takeovers and overrides",
     "groupInstall": "Install",

@@ -165,6 +165,7 @@ export const FOLIUM_SOURCE_MEMBER_DESTINATIONS = Object.freeze({
         canResolveSongCatalogRefs: 'catalog@1.canResolveSongCatalogRefs',
         resolveSongCatalogRefs: 'catalog@1.resolveSongCatalogRefs',
         getPlaylistTracks: 'catalog@1.getPlaylistTracks',
+        getGroupTracks: 'catalog@1.getGroupTracks',
         getPlaylistDetail: 'catalog@1.getPlaylistDetail',
         getCloudTracks: 'catalog@1.getCloudTracks',
         getListeningRankTracks: 'catalog@1.getListeningRankTracks',

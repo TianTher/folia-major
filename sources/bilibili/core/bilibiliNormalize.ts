@@ -43,6 +43,8 @@ export interface BilibiliSongData {
     pages?: number;
     /** The video's own id (avid), as the API asks for it. */
     avid?: number;
+    /** Which part this song is (1 for the whole video, which plays its first part). */
+    part?: number;
 }
 
 /** `http://i1.hdslb.com/...` → `https://...`: the app's pages are https and would block the plain one. */

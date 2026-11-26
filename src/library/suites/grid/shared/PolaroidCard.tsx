@@ -50,6 +50,8 @@ export interface PolaroidCardProps {
     isEditMode?: boolean;
     onRemoveTrack?: () => void;
     onSelectArtist?: (artistId: number | string, artist?: any, track?: SongResult) => void;
+    /** 这一行含好几首（B 站多 P）：点 P 数打开那一组。 */
+    onOpenGroup?: (track: SongResult) => void;
     onSelectAlbum?: (albumId: number | string, album?: any, track?: SongResult) => void;
     onBeforeNestedNavigate?: () => void;
     onEditLocalMetadata?: () => void;
@@ -91,6 +93,7 @@ export const PolaroidCard = React.memo<PolaroidCardProps>(
         isEditMode = false,
         onRemoveTrack,
         onSelectArtist,
+        onOpenGroup,
         onSelectAlbum,
         onBeforeNestedNavigate,
         onEditLocalMetadata,
@@ -253,6 +256,7 @@ export const PolaroidCard = React.memo<PolaroidCardProps>(
                                     item={item}
                                     mode={mode}
                                     onSelectArtist={onSelectArtist}
+                                    onOpenGroup={onOpenGroup}
                                     onBeforeNestedNavigate={onBeforeNestedNavigate}
                                 />
                             </div>
@@ -340,6 +344,7 @@ export const PolaroidCard = React.memo<PolaroidCardProps>(
                                     item={item}
                                     mode={mode}
                                     onSelectArtist={onSelectArtist}
+                                    onOpenGroup={onOpenGroup}
                                     onBeforeNestedNavigate={onBeforeNestedNavigate}
                                 />
                             </div>

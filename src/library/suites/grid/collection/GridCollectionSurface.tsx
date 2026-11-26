@@ -45,6 +45,8 @@ const GridCollectionSurface: React.FC<LibraryCollectionSurfaceProps> = ({
             onBack={onBack}
             onDone={onDone}
             onSelectTrack={stayPlayback.selectTrack}
+            // 一组歌（B 站一个视频的各 P）里点了一首：播它，后面的同组歌曲跟着进队列，于是下一曲就是下一 P。
+            onPlaySongGroup={(track, queue) => playback.playTrack(track, queue)}
             trackPlaybackMark={stayPlayback.markFor}
             onAddTrackToQueue={playback.enqueueTrack}
             onPlayAll={playback.playAll}

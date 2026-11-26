@@ -1,7 +1,16 @@
 
 
 export default {
-  "sourcesSettings": {
+
+  "songGroup": {
+    "parts": "共 {{total}} 个分 P",
+    "page": "第 {{page}} / {{pages}} 页",
+    "close": "关闭",
+    "previous": "上一页",
+    "next": "下一页",
+    "loading": "正在读取分 P…",
+    "failed": "分 P 读取失败，稍后再试"
+  },  "sourcesSettings": {
     "groupList": "音源",
     "groupNotices": "接管与覆盖",
     "groupInstall": "安装",

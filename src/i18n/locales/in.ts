@@ -1,7 +1,16 @@
 
 
 export default {
-  "sourcesSettings": {
+
+  "songGroup": {
+    "parts": "{{total}} bagian",
+    "page": "Halaman {{page}} dari {{pages}}",
+    "close": "Tutup",
+    "previous": "Sebelumnya",
+    "next": "Berikutnya",
+    "loading": "Membaca bagian…",
+    "failed": "Bagian tidak bisa dibaca. Coba lagi nanti."
+  },  "sourcesSettings": {
     "groupList": "Sumber",
     "groupNotices": "Pengambilalihan dan penggantian",
     "groupInstall": "Pasang",

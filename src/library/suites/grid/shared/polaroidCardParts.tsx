@@ -128,7 +128,9 @@ export const PolaroidCardArtists: React.FC<{
     mode: PolaroidCardMode;
     onSelectArtist?: (artistId: number | string, artist?: any, track?: SongResult) => void;
     onBeforeNestedNavigate?: () => void;
-}> = ({ item, mode, onSelectArtist, onBeforeNestedNavigate }) => {
+    /** 这一行里含好几首（B 站多 P）时，点 P 数打开那一组；没有这个回调就只显示数字。 */
+    onOpenGroup?: (track: SongResult) => void;
+}> = ({ item, mode, onSelectArtist, onBeforeNestedNavigate, onOpenGroup }) => {
     if (!(mode === 'tracks' && onSelectArtist && item.rawTrack?.artists)) {
         return <>{item.description}</>;
     }
@@ -164,10 +166,18 @@ export const PolaroidCardArtists: React.FC<{
                     </span>
                 );
             })}
-            {groupLabel && (
-                // 多 P：这一行代表整条视频，歌手后面说它下面有几个 P（展开那一层由宿主画）。
+            {groupLabel && (onOpenGroup && item.rawTrack ? (
+                // 多 P：这一行代表整条视频，点 P 数打开各 P（两列、每页十个）。
+                <button
+                    type="button"
+                    className="opacity-60 hover:opacity-100 hover:underline"
+                    onClick={(event) => { event.stopPropagation(); onOpenGroup(item.rawTrack as SongResult); }}
+                >
+                    · {groupLabel}
+                </button>
+            ) : (
                 <span className="opacity-60">· {groupLabel}</span>
-            )}
+            ))}
         </span>
     );
 };

@@ -1082,7 +1082,12 @@ export interface FoliumSourceCatalog {
     resolveSongCatalogRefs?(song: FoliumSourceSong): Promise<FoliumSourceSong>;
     /** A playlist's songs. */
     getPlaylistTracks?(id: string, limit: number, offset: number, collection?: FoliumSourceCollection): Promise<FoliumSourcePage<FoliumSourceSong>>;
-    /** A playlist's details. */
+    /**
+     * Folium 2.4: the songs of one row the source grouped (`FoliumSourceSong.group`) — a video's parts, say. The
+     * library asks for them when the listener opens that row, ten at a time; they are songs like any other, so the
+     * queue walks them one after another.
+     */
+    getGroupTracks?(groupId: string, limit: number, offset: number, collection?: FoliumSourceCollection): Promise<FoliumSourcePage<FoliumSourceSong>>;    /** A playlist's details. */
     getPlaylistDetail?(id: string, collection?: FoliumSourceCollection): Promise<FoliumSourceCollection | null>;
     /** The cloud songs. */
     getCloudTracks?(limit: number, offset: number, collection?: FoliumSourceCollection): Promise<FoliumSourcePage<FoliumSourceSong>>;

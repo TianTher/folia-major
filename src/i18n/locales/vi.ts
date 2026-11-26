@@ -1,7 +1,16 @@
 // Vietnamese (vi) interface text, laid out line for line like en.ts.
 
 export default {
-  "sourcesSettings": {
+
+  "songGroup": {
+    "parts": "{{total}} phần",
+    "page": "Trang {{page}} / {{pages}}",
+    "close": "Đóng",
+    "previous": "Trước",
+    "next": "Sau",
+    "loading": "Đang đọc các phần…",
+    "failed": "Không đọc được các phần. Thử lại sau."
+  },  "sourcesSettings": {
     "groupList": "Nguồn",
     "groupNotices": "Tiếp quản và thay thế",
     "groupInstall": "Cài đặt",

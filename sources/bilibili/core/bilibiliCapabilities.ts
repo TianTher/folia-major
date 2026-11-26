@@ -630,8 +630,11 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
             );
             const lines = (body?.body ?? [])
                 .filter(line => typeof line.content === 'string')
-                .map(line => ({ from: Number(line.from) || 0, content: String(line.content) }));
-            if (!lines.length) return null;
+                .map(line => ({ from: Number(line.from) || 0, content: String(line.content) }))
+                .filter(line => line.content.trim() !== '');
+            // 只有一行的"字幕"不是歌词：那是上传者（或平台的自动字幕）挂的一句提示，例如「↓↓敲重点↓↓精彩的↓↓」，
+            // 显示出来就是开头莫名其妙的一句。这样的视频当作没有歌词。
+            if (lines.length < 2) return null;
             return { main: { format: 'lrc', text: toLrc(lines) } };
         },
         // Handed to the host's match windows: the video's title as the song it probably is.

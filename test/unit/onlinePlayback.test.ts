@@ -12,6 +12,7 @@ const loadLyricsStateMock = vi.hoisted(() => vi.fn());
 const saveLyricsStateMock = vi.hoisted(() => vi.fn());
 const isUrlValidMock = vi.hoisted(() => vi.fn(() => true));
 const saveToCacheMock = vi.hoisted(() => vi.fn());
+const removeFromCacheMock = vi.hoisted(() => vi.fn());
 const itemTraitsMock = vi.hoisted(() => vi.fn(() => ({ kind: 'song', lyrics: 'match', likable: true, reported: true, route: 'audio' })));
 const updatePrefetchedAudioUrlMock = vi.hoisted(() => vi.fn());
 const lyricSettings = vi.hoisted(() => ({
@@ -72,6 +73,7 @@ vi.mock('@/services/prefetchService', () => ({
 
 vi.mock('@/services/db', () => ({
     saveToCache: saveToCacheMock,
+    removeFromCache: removeFromCacheMock,
 }));
 
 // 只用自己的歌词的条目（B 站视频）：默认按一首歌的规则，用例里单独改。
@@ -416,11 +418,11 @@ describe('lyrics only its source has (a video with CC subtitles)', () => {
 
         expect(lyricsMock).toHaveBeenCalledOnce();
         const lyricSave = saveToCacheMock.mock.calls.map(call => call[1]).find(saved => Boolean(saved && Array.isArray(saved.lines)));
-        expect(lyricSave).toMatchObject({ ownSourceLyrics: true });
+        expect(lyricSave).toMatchObject({ ownSourceLyrics: 2 });
     });
 
     it('plays a marked entry without asking the source again', async () => {
-        songCacheMock.mockResolvedValue({ lines, isWordByWord: false, ownSourceLyrics: true });
+        songCacheMock.mockResolvedValue({ lines, isWordByWord: false, ownSourceLyrics: 2 });
         const onLyrics = vi.fn();
 
         await loadOnlineSongLyrics(ownItem, null, null, { isCurrent: () => true, onLyrics, onDone: vi.fn() });
@@ -430,6 +432,18 @@ describe('lyrics only its source has (a video with CC subtitles)', () => {
         expect(onLyrics).toHaveBeenCalled();
     });
 
+    it('drops a stale entry when the source turns out to have no lyrics for the song', async () => {
+        // 老条目可能是一句提示行（"↓↓敲重点↓↓"）：来源这次说没有歌词，就该把那份旧的删掉，别再显示、也别每播一次问一次。
+        songCacheMock.mockResolvedValue({ lines, isWordByWord: false, ownSourceLyrics: true });
+        lyricsMock.mockResolvedValue({ lyrics: null, isPureMusic: false });
+        const onLyrics = vi.fn();
+
+        await loadOnlineSongLyrics(ownItem, null, null, { isCurrent: () => true, onLyrics, onDone: vi.fn() });
+
+        expect(lyricsMock).toHaveBeenCalledOnce();
+        expect(removeFromCacheMock).toHaveBeenCalled();
+        expect(onLyrics).toHaveBeenCalledWith(null);
+    });
     it('does not trust an unmarked entry, which may be another song’s words', async () => {
         songCacheMock.mockResolvedValue({ lines, isWordByWord: false });
         lyricsMock.mockResolvedValue({ lyrics: { lines, isWordByWord: false }, isPureMusic: false });

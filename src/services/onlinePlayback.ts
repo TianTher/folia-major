@@ -1,5 +1,5 @@
 import { LyricData, OnlineLyricsState, ReplayGainInfo, SongResult } from '../types';
-import { saveToCache } from './db';
+import { removeFromCache, saveToCache } from './db';
 import { PrefetchedSongData, isUrlValid, updatePrefetchedAudioUrl } from './prefetchService';
 import { isPureMusicLyricText } from '../utils/lyrics/pureMusic';
 import { readCachedPlaybackLyrics } from './onlineMusic/cachedPlaybackLyrics';
@@ -405,6 +405,9 @@ export async function loadOnlineSongLyrics(
     );
 
     if (!resolvedLyrics) {
+        // 只用自己的歌词的条目这次没拿到（视频没有字幕，或者字幕是那句提示行）：把缓存里那份旧的删掉，
+        // 免得它一直显示，也免得以后每次播放都再问一次。
+        if (ownLyricsOnly) void removeFromCache(lyricCacheKey);
         onLyrics(null);
         onDone();
         return;

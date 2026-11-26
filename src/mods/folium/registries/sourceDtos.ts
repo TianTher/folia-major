@@ -13,6 +13,9 @@ import type { PersonalFmLaunch, PersonalFmModeId } from '@/types/personalFm';
 import type { FoliumJsonValue } from '../contract';
 import type { FoliumSourceCollection, FoliumSourceNamedRef, FoliumSourceSong, FoliumSourceUser } from '../sources/contract';
 
+// 一行的歌数上限：脏数据（例如 total: 1e9）不能让界面画出十亿页。
+const MAX_GROUP_TOTAL = 5000;
+
 // src/mods/folium/registries/sourceDtos.ts
 // The song, collection, user and page DTOs of Folium 2.0 sources (plan §4.3), turned into the host's own
 // shapes and back. Towards the host a song becomes a UnifiedSong of the source's provider id: its artists
@@ -144,7 +147,8 @@ export const toHostSong = (providerId: OnlineProviderId, song: FoliumSourceSong)
             id: groupId,
             ...(groupTitle ? { title: groupTitle } : {}),
             ...(groupCover ? { coverUrl: groupCover } : {}),
-            ...(groupTotal !== undefined ? { total: groupTotal } : {}),
+            // 分 P 的个数收成合理的正整数：脏数据（1e9）不能让界面画出十亿页。
+            ...(groupTotal !== undefined ? { total: Math.min(Math.round(groupTotal), MAX_GROUP_TOTAL) } : {}),
         }
         : undefined;
     const row = record(raw.row);
@@ -260,6 +264,15 @@ export const toSourceSong = (song: SongResult): FoliumSourceSong => {
             }),
         } : {}),
         ...(loose.replayGain ? { replayGain: Object.freeze({ ...loose.replayGain }) } : {}),
+        // 一组里的一首（Folium 2.3）：音源给的 group 原样还回去，它读回自己的歌时还认得出这一行。
+        ...(loose.songGroup ? {
+            group: Object.freeze({
+                id: loose.songGroup.id,
+                ...(loose.songGroup.title ? { title: loose.songGroup.title } : {}),
+                ...(loose.songGroup.coverUrl ? { coverUrl: loose.songGroup.coverUrl } : {}),
+                total: loose.songGroup.total ?? 1,
+            }),
+        } : {}),
         ...(data ? { data } : {}),
     };
     const frozen = Object.freeze(dto);

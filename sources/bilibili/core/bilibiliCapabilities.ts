@@ -514,6 +514,11 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
         },
     };
 
+    /** `bvid:p<n>` → 视频与第几 P；普通 `bvid` 就是第 1 P。 */
+    const splitPartId = (id: string): { bvid: string; part: number } => {
+        const match = /^(.*):p(\d+)$/.exec(id);
+        return match ? { bvid: match[1], part: Math.max(1, Number(match[2])) } : { bvid: id, part: 1 };
+    };
     /**
      * 一个视频的某一 P，作为独立的歌：id 是 `bvid:pN`（播的时候 `idsOf` 按 N 取 cid），标题在 P1 上就是视频标题，
      * 其余 P 是「视频标题 · P 标题」，时长用那一 P 的（`view.pages[n].duration`，秒）。都带 `group`，宿主把它们
@@ -534,7 +539,8 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
             part: index,
         };
         return {
-            id: `${bvid}:p${index}`,
+            // 第一 P 就是整条视频本身，id 也用它：宿主据此认为「正在播的就是那一行」，卡片上才会显示播放状态。
+            id: index === 1 ? bvid : `${bvid}:p${index}`,
             title,
             artists: data.owner?.name
                 ? [{ id: String(data.owner.mid ?? ''), name: data.owner.name, ref: false }]
@@ -576,12 +582,11 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
      */
     const idsOf = async (song: FoliumSourceSong): Promise<{ avid?: number; cid?: number }> => {
         const known = song.data as unknown as BilibiliSongData | undefined;
-        const partMatch = /^(.*):p(\d+)$/.exec(song.id);
-        const bvid = partMatch ? partMatch[1] : song.id;
-        const part = partMatch ? Math.max(1, Number(partMatch[2])) : 1;
+        const { bvid, part } = splitPartId(song.id);
         let avid = known?.avid;
         let cid = known?.cid;
-        if (part === 1 && avid && cid) return { avid, cid };
+        // 这一首就是它自己那一 P（`partSong` 把 cid 写在 data 里）：不用再问一次 view。
+        if (avid && cid && (known?.part ?? 1) === part) return { avid, cid };
         const view = unwrapOrNull<ViewData>(await request('view', { bvid }), fail, 'view');
         if (!view) return { avid, cid };
         avid = view.aid ?? avid;
@@ -642,21 +647,36 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
 
     const songs: FoliumSourceSongs = {
         async getSong(id) {
-            const data = unwrapOrNull<ViewData>(await request('view', { bvid: id }), fail, 'view');
-            return data && (data.bvid || data.aid) ? songFromView(data) : null;
+            const { bvid, part } = splitPartId(id);
+            const data = unwrapOrNull<ViewData>(await request('view', { bvid }), fail, 'view');
+            if (!data || !(data.bvid || data.aid)) return null;
+            // 分 P 的 id 要还原成那一 P（标题、时长、cid 都是它的）。
+            const pages = data.pages ?? [];
+            return part > 1 && pages.length > 1 ? partSong(data, pages[part - 1] ?? pages[0], part, pages.length) : songFromView(data);
         },
         async getSongs(ids) {
             // One `view` a song: bilibili has no endpoint that takes a list of bvids. The host asks for a queue's
             // details, not for every row, so this stays a handful of requests.
             const answered: Array<FoliumSourceSong | null> = [];
             for (const id of ids) {
-                const data = unwrapOrNull<ViewData>(await request('view', { bvid: id }), fail, 'view');
-                answered.push(data && (data.bvid || data.aid) ? songFromView(data) : null);
+                const { bvid, part } = splitPartId(id);
+                const data = unwrapOrNull<ViewData>(await request('view', { bvid }), fail, 'view');
+                if (!data || !(data.bvid || data.aid)) {
+                    answered.push(null);
+                    continue;
+                }
+                const pages = data.pages ?? [];
+                answered.push(part > 1 && pages.length > 1 ? partSong(data, pages[part - 1] ?? pages[0], part, pages.length) : songFromView(data));
             }
             return answered;
         },
         getPageUrl(song) {
-            return song.id ? `https://www.bilibili.com/video/${song.id}` : null;
+            if (!song.id) return null;
+            const { bvid, part } = splitPartId(song.id);
+            // 分 P 的地址要带 `?p=`，否则打开的是视频的第一 P。
+            return part > 1
+                ? `https://www.bilibili.com/video/${bvid}?p=${part}`
+                : `https://www.bilibili.com/video/${bvid}`;
         },
     };
 

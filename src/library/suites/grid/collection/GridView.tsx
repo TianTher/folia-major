@@ -2379,6 +2379,7 @@ export const GridView: React.FC<GridViewProps> = ({
                 <SongGroupPicker
                     group={songGroupPicker.group}
                     providerId={songGroupPicker.providerId}
+                    isDaylight={isDaylight}
                     onClose={() => setSongGroupPicker(null)}
                     onPlay={(track) => {
                         setSongGroupPicker(null);

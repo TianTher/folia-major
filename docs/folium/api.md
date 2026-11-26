@@ -2658,7 +2658,7 @@ playlists, so `data` must be JSON and small; what else is stored with a song is 
 | `lyricIds?` | `Record<string, string>` | The ids other sources know the song by, for their lyrics: `{ '<source id>': '<the song's id there>' }`. |
 | `row?` | `{ id?: string; listenCount?: number }` | What goes with the row it was read from, not with the song. |
 | `replayGain?` | `FoliumSourceReplayGain` | Loudness values of the song. |
-| `group?` | `FoliumSourceSongGroup` | Folium 2.3: the row this song belongs to when the source hands out several songs for one thing the listener sees as one — the parts of a video, say. Rows of the same `group.id` are drawn as that one thing, which opens to show them (a bilibili video's P list). Left out: the song is a row of its own, as before. |
+| `group?` | `FoliumSourceSongGroup` | Folium 2.3: the row this song belongs to when the source hands out several songs for one thing the listener sees as one — the parts of a video, say. Rows of the same `group.id` are drawn as that one thing, which opens to show them (a video's part list, say). Left out: the song is a row of its own, as before. |
 | `data?` | `Record<string, FoliumJsonValue>` | The source's own data of the song, handed back with it. Plain JSON of at most 16 KB as JSON text: the host keeps it with the song (queue, history). Data that is not JSON, or larger, is not kept at all (one warning a source in the log), and the song comes back without it. Functions in it are left out, as JSON does. |
 
 相关：[FoliumSourceNamedRef](#foliumsourcenamedref) · [FoliumSourceAlbumRef](#foliumsourcealbumref) · [FoliumSourceReplayGain](#foliumsourcereplaygain) · [FoliumSourceSongGroup](#foliumsourcesonggroup) · [FoliumJsonValue](#foliumjsonvalue)
@@ -2672,7 +2672,7 @@ Folium 2.3: what a song says about the row it shares with others (`FoliumSourceS
 | `id` | `string` | The row's id at the source: the thing the songs belong to (a video's `bvid`). |
 | `title?` | `string` | The row's title, when it is not the first song's (a video's title, without the part). |
 | `coverUrl?` | `string` | The row's cover; the first song's when left out. |
-| `total?` | `number` | How many songs the row has, so the host can say "12 parts" before they are read. |
+| `total` | `number` | How many songs the row has: the host says "12 parts" before they are read, and opens the row up. Required: a source that leaves it out gets a row nothing can be opened from. |
 
 ### FoliumSourceUser
 
@@ -3293,6 +3293,7 @@ Folium 2: `catalog@1`. `collection` is the entry as the host has it, where it ha
 | `canResolveSongCatalogRefs?()` | `(song: FoliumSourceSong): boolean` | Whether `resolveSongCatalogRefs` can fill in where `song`'s album and artists open. Synchronous. |
 | `resolveSongCatalogRefs?()` | `(song: FoliumSourceSong): Promise<FoliumSourceSong>` | `song` with its album's and artists' ids filled in. |
 | `getPlaylistTracks?()` | `(id: string, limit: number, offset: number, collection?: FoliumSourceCollection): Promise<FoliumSourcePage<FoliumSourceSong>>` | A playlist's songs. |
+| `getGroupTracks?()` | `(groupId: string, limit: number, offset: number, collection?: FoliumSourceCollection): Promise<FoliumSourcePage<FoliumSourceSong>>` | Folium 2.3: the songs of one row the source grouped (`FoliumSourceSong.group`) — a video's parts, say. The library asks for them when the listener opens that row, ten at a time; they are songs like any other, so the queue walks them one after another. |
 | `getPlaylistDetail?()` | `(id: string, collection?: FoliumSourceCollection): Promise<FoliumSourceCollection \| null>` | A playlist's details. |
 | `getCloudTracks?()` | `(limit: number, offset: number, collection?: FoliumSourceCollection): Promise<FoliumSourcePage<FoliumSourceSong>>` | The cloud songs. |
 | `getListeningRankTracks?()` | `(range: 'week' \| 'all', limit: number, offset: number, collection?: FoliumSourceCollection): Promise<FoliumSourcePage<FoliumSourceSong>>` | The ranking's songs, each with `row.listenCount` where the source gives one. |

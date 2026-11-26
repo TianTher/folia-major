@@ -4,6 +4,8 @@ import { resolveNavidromePlaybackCarrier } from '../../utils/appPlaybackGuards';
 import type { HomeSurfaceProps } from '../../components/app/home/homeSurfaceTypes';
 import { collectToScratchpad } from '../../stores/useScratchpadStore';
 import { canOpenPlaylistPickerFor, openAddSongsToPlaylist } from '../../stores/useAddToPlaylistStore';
+import { usePlaybackStore } from '../../stores/usePlaybackStore';
+import { PlayerState } from '../../types';
 import { getSongGroup } from '../../services/onlineMusic/songMetadata';
 import { omni } from '../../services/onlineMusic/omni';
 import { getPlaybackSongKey, getPlaybackSourceRef } from '../../utils/appPlaybackGuards';
@@ -27,6 +29,14 @@ type PlaybackSurface = Pick<
 /** 一组歌最多这么多首：一首歌的分 P 再长也就几十，给个上限免得一整季合集撑爆队列。 */
 const GROUP_QUEUE_LIMIT = 200;
 
+/** 一组的身份是「音源 + 音源自己那一行的 id」：两个音源用同一个 id 也不会被认成一行。 */
+const groupKeyOf = (song: SongResult): string | null => {
+    const group = getSongGroup(song);
+    if (!group) return null;
+    const ref = getPlaybackSourceRef(song);
+    return ref.kind === 'online' ? `${ref.providerId}\u0000${group.id}` : null;
+};
+
 /**
  * 一首属于某个"行"的歌（B 站一个视频的各 P）的整组歌曲；不是这种歌、或者读不到，就是 null。
  * 读它是为了让队列里那一行变成它的各 P：点播放键播第一 P 时，右下角播放列表里就能看到整条视频的分 P。
@@ -39,7 +49,9 @@ export const partsOfGroup = async (track: SongResult): Promise<SongResult[] | nu
         const answer = await omni.getGroupTracks(ref.providerId, group.id, { limit: GROUP_QUEUE_LIMIT, offset: 0 });
         const parts = answer.items ?? [];
         return parts.length ? parts : null;
-    } catch {
+    } catch (error) {
+        // 读不到就照旧只播这一首：记下来才能把「音源坏了」和「本来就是一首」分开。
+        console.warn('[LibraryPlayback] reading the songs of a row failed; playing that one song alone', error);
         return null;
     }
 };
@@ -54,27 +66,48 @@ export const expandGroupInQueue = (
     parts: SongResult[],
 ): SongResult[] => {
     const base = queue ?? [];
-    const groupId = getSongGroup(track)?.id;
-    if (!groupId) return parts;
-    const inGroup = base.filter(item => getSongGroup(item)?.id === groupId);
+    const key = groupKeyOf(track);
+    if (!key) return parts;
     // 已经展开过（队列里已有这一组的两首以上）：原样交回去，免得同一个 P 排进去两次。
-    if (inGroup.length > 1) return base;
-    const rowAt = base.findIndex(item => getSongGroup(item)?.id === groupId);
+    if (base.filter(item => groupKeyOf(item) === key).length > 1) return base;
+    const rowAt = base.findIndex(item => groupKeyOf(item) === key);
     return rowAt >= 0 ? [...base.slice(0, rowAt), ...parts, ...base.slice(rowAt + 1)] : parts;
 };
 
 /** 队列里这一组是不是已经展开过（含两首以上）：是就不必再读一次、也不必再换一遍。 */
 const alreadyExpanded = (track: SongResult, queue: SongResult[] | undefined): boolean => {
-    const groupId = getSongGroup(track)?.id;
-    if (!groupId) return false;
-    return (queue ?? []).filter(item => getSongGroup(item)?.id === groupId).length > 1;
+    const key = groupKeyOf(track);
+    return key !== null && (queue ?? []).filter(item => groupKeyOf(item) === key).length > 1;
 };
 
-/** 展开之后从 `track` 那一首（或这一组第一首）开播。 */
+let playIntentSeq = 0;
+
+/**
+ * 读回一组之前记下「现在在放什么、放没在放」，读回来时对一次：这中间用户点了别的歌、按了下一首或暂停，
+ * 晚到的答案就不该再接管播放。返回的函数在可以播时给出 true。
+ */
+export const takePlayIntent = (): (() => boolean) => {
+    const token = ++playIntentSeq;
+    const state = usePlaybackStore.getState();
+    const keyBefore = state.currentSong ? getPlaybackSongKey(state.currentSong) : null;
+    const pausedBefore = state.playerState !== PlayerState.PLAYING;
+    return () => {
+        if (token !== playIntentSeq) return false;
+        const now = usePlaybackStore.getState();
+        return (!now.currentSong ? null : getPlaybackSongKey(now.currentSong)) === keyBefore
+            && (now.playerState !== PlayerState.PLAYING) === pausedBefore;
+    };
+};
+
+/** 展开之后从 `track` 那一首开播；队列里找不到它（例如超过读取上限的某一 P）就只播它自己。 */
 const playExpanded = (surface: PlaybackSurface, track: SongResult, queue: SongResult[] | undefined, parts: SongResult[]): void => {
     const expanded = expandGroupInQueue(queue, track, parts);
     const startAt = expanded.findIndex(item => getPlaybackSongKey(item) === getPlaybackSongKey(track));
-    surface.onPlaySong(startAt >= 0 ? expanded[startAt] : parts[0], expanded);
+    if (startAt < 0) {
+        surface.onPlaySong(track, queue);
+        return;
+    }
+    surface.onPlaySong(expanded[startAt], expanded);
 };
 
 export const createLibraryPlaybackPort = (surface: PlaybackSurface): LibraryPlaybackPort => ({
@@ -83,7 +116,9 @@ export const createLibraryPlaybackPort = (surface: PlaybackSurface): LibraryPlay
             surface.onPlaySong(track, queue);
             return;
         }
+        const stillWanted = takePlayIntent();
         void partsOfGroup(track).then((parts) => {
+            if (!stillWanted()) return;
             if (!parts) {
                 surface.onPlaySong(track, queue);
                 return;

@@ -1537,8 +1537,13 @@ export const omni = {
         return runRequest(provider, 'audio', async () => await (provider.playback?.getReplacement?.(song) ?? null));
     },
 
+    // Whether the provider can hand out the songs of one row it grouped: a source without it has nothing to open.
+    canGetGroupTracks(providerId: OmniProviderId): boolean {
+        const catalog = getOnlineMusicProvider(providerId)?.catalog;
+        return typeof catalog?.getGroupTracks === 'function';
+    },
     // The songs of one row a provider grouped (a video's parts), read when the listener opens that row. The provider
-    // comes with the call: a group id is the provider's own (a bilibili bvid, say), and the song that owns the row
+    // comes with the call: a group id is the provider's own (a video id, say), and the song that owns the row
     // names it.
     async getGroupTracks(providerId: OmniProviderId, groupId: string, page: PageInput): Promise<OmniPage<UnifiedSong>> {
         const provider = getOnlineMusicProvider(providerId);

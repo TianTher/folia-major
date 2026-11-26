@@ -1,7 +1,7 @@
 import type { LyricData } from '../../types';
 
 // src/services/onlineMusic/ownLyricCache.ts
-// A source that keeps only its own lyrics (`lyrics: 'own'` — a bilibili video's CC subtitles, say) cannot trust a lyric
+// A source that keeps only its own lyrics (`lyrics: 'own'` — a video platform's own captions, say) cannot trust a lyric
 // the cache holds without knowing where it came from: an entry written before the source said `own` may be another
 // song's words, matched in by the host. So what such a source's own path writes carries a mark, and an entry without
 // the mark is fetched once more and written back with it — after that a play is one cache read and no request at all

@@ -3343,7 +3343,7 @@ export interface FoliumSourceSong {
     /**
      * Folium 2.3: the row this song belongs to when the source hands out several songs for one thing the listener sees
      * as one — the parts of a video, say. Rows of the same `group.id` are drawn as that one thing, which opens to show
-     * them (a bilibili video's P list). Left out: the song is a row of its own, as before.
+     * them (a video's part list, say). Left out: the song is a row of its own, as before.
      */
     group?: FoliumSourceSongGroup;
     /**
@@ -3362,8 +3362,11 @@ export interface FoliumSourceSongGroup {
     title?: string;
     /** The row's cover; the first song's when left out. */
     coverUrl?: string;
-    /** How many songs the row has, so the host can say "12 parts" before they are read. */
-    total?: number;
+    /**
+     * How many songs the row has: the host says "12 parts" before they are read, and opens the row up. Required:
+     * a source that leaves it out gets a row nothing can be opened from.
+     */
+    total: number;
 }
 
 /** Folium 2: an account at a source. */
@@ -4058,11 +4061,12 @@ export interface FoliumSourceCatalog {
     /** A playlist's songs. */
     getPlaylistTracks?(id: string, limit: number, offset: number, collection?: FoliumSourceCollection): Promise<FoliumSourcePage<FoliumSourceSong>>;
     /**
-     * Folium 2.4: the songs of one row the source grouped (`FoliumSourceSong.group`) — a video's parts, say. The
+     * Folium 2.3: the songs of one row the source grouped (`FoliumSourceSong.group`) — a video's parts, say. The
      * library asks for them when the listener opens that row, ten at a time; they are songs like any other, so the
      * queue walks them one after another.
      */
-    getGroupTracks?(groupId: string, limit: number, offset: number, collection?: FoliumSourceCollection): Promise<FoliumSourcePage<FoliumSourceSong>>;    /** A playlist's details. */
+    getGroupTracks?(groupId: string, limit: number, offset: number, collection?: FoliumSourceCollection): Promise<FoliumSourcePage<FoliumSourceSong>>;
+    /** A playlist's details. */
     getPlaylistDetail?(id: string, collection?: FoliumSourceCollection): Promise<FoliumSourceCollection | null>;
     /** The cloud songs. */
     getCloudTracks?(limit: number, offset: number, collection?: FoliumSourceCollection): Promise<FoliumSourcePage<FoliumSourceSong>>;

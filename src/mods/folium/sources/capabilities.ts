@@ -56,9 +56,9 @@ export const FOLIUM_SOURCE_CAPABILITY_MEMBERS: Readonly<Record<FoliumStandardCap
         'getCloudCollection', 'getListeningRankCollections',
     ],
     catalog: [
-        'canResolveSongCatalogRefs', 'resolveSongCatalogRefs', 'getPlaylistTracks', 'getPlaylistDetail', 'getCloudTracks',
-        'getListeningRankTracks', 'getAlbumTracks', 'getAlbumDetail', 'getArtistSongs', 'getArtistAlbums',
-        'getArtistDetail', 'getSubscriptionStatus',
+        'canResolveSongCatalogRefs', 'resolveSongCatalogRefs', 'getPlaylistTracks', 'getGroupTracks', 'getPlaylistDetail',
+        'getCloudTracks', 'getListeningRankTracks', 'getAlbumTracks', 'getAlbumDetail', 'getArtistSongs',
+        'getArtistAlbums', 'getArtistDetail', 'getSubscriptionStatus',
     ],
     recommendations: [
         'personalFmModes', 'getPersonalFmCatalog', 'getDailySongs', 'getPersonalFm', 'getRecommendedCollections',

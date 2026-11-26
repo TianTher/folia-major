@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { toHostSong } from '@/mods/folium/registries/sourceDtos';
+import { toHostSong, toSourceSong } from '@/mods/folium/registries/sourceDtos';
 import { getSongGroupLabel } from '@/services/onlineMusic/songMetadata';
 import type { FoliumSourceSong } from '@/mods/folium/sources/contract';
 
@@ -32,6 +32,17 @@ describe('a song that shares a row', () => {
         expect(getSongGroupLabel(host)).toBe('');
     });
 
+    it('clamps a nonsensical part count, so the badge cannot print a billion pages', () => {
+        const absurd = toHostSong('bilibili', { ...part(1, 2), group: { id: 'BV1xx', total: 1e9 } });
+        expect(absurd.songGroup?.total).toBe(5000);
+    });
+
+    it('gives the group back to the source, which reads its own songs back', () => {
+        expect(toSourceSong(toHostSong('bilibili', part(2, 7)))).toMatchObject({
+            id: 'BV1xx:p2',
+            group: { id: 'BV1xx', title: 'Video', total: 7 },
+        });
+    });
     it('says nothing for a group of one, and drops a group with no id', () => {
         expect(getSongGroupLabel(toHostSong('bilibili', part(1, 1)))).toBe('');
         expect(toHostSong('bilibili', part(1, 3)).songGroup?.total).toBe(3);

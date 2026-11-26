@@ -147,7 +147,8 @@ describe('every member of the internal contract has a place for a Folium 2.0 sou
         // the host took in S6 for playback.surface after the matrix was made (routeOf, itemKinds, externalPlayback.mount).
         // And the two of songs@1 that name a counterpart of another source's song (counterpartSources, getCounterparts),
         // and the words in place of the quality pick list (audioQualityNoticeKey, playback.audio@1.audioQualityNotice).
-        expect(count).toBe(165 + 3 + 2 + 1);
+        // And the one of catalog@1 that reads the songs of a row a source grouped (getGroupTracks, Folium 2.3).
+        expect(count).toBe(165 + 3 + 2 + 1 + 1);
         // No sub-interface of the provider is left out of the table.
         const slots = Object.entries(FOLIUM_SOURCE_MEMBER_DESTINATIONS.OnlineMusicProvider)
             .filter(([slot, destination]) => slot !== 'capabilities' && (destination.startsWith('derived from') || destination === 'dto'))

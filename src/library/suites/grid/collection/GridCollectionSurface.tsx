@@ -4,8 +4,9 @@ import { useGridMorphPlan } from '../transitions/useGridMorphPlan';
 import { useGridStayPlayback } from '../shared/useGridStayPlayback';
 import { useNavigationPageKey } from '../../../../components/app/playing-song-locator/useNavigationPageKey';
 import GridView from './GridView';
-import { expandGroupInQueue, partsOfGroup } from '../../../app/createLibraryPlaybackPort';
+import { expandGroupInQueue, partsOfGroup, takePlayIntent } from '../../../app/createLibraryPlaybackPort';
 import { getSongGroup } from '../../../../services/onlineMusic/songMetadata';
+import { getPlaybackSongKey } from '../../../../utils/appPlaybackGuards';
 
 // src/library/suites/grid/collection/GridCollectionSurface.tsx
 // 网格的集合 surface：把宿主交给任何 suite 的同一份输入（core/suite/suite.contract 的 LibraryCollectionSurfaceProps）
@@ -52,12 +53,21 @@ const GridCollectionSurface: React.FC<LibraryCollectionSurfaceProps> = ({
                     stayPlayback.selectTrack(track, queue);
                     return;
                 }
+                const stillWanted = takePlayIntent();
                 void partsOfGroup(track).then((parts) => {
+                    if (!stillWanted()) return;
                     if (!parts) {
                         stayPlayback.selectTrack(track, queue);
                         return;
                     }
-                    stayPlayback.selectTrack(parts[0], expandGroupInQueue(queue, track, parts));
+                    const expanded = expandGroupInQueue(queue, track, parts);
+                    const startAt = expanded.findIndex(item => getPlaybackSongKey(item) === getPlaybackSongKey(track));
+                    // 读回来的窗口里没有这一首（一整季那种超长合集）：只播它自己，不要悄悄从第一 P 开始。
+                    if (startAt < 0) {
+                        stayPlayback.selectTrack(track, queue);
+                        return;
+                    }
+                    stayPlayback.selectTrack(expanded[startAt], expanded);
                 });
             }}
             // 一组歌（B 站一个视频的各 P）里点了一首：队列按同一份收藏夹展开，从它开始播。

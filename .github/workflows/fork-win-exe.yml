@@ -66,17 +66,15 @@ jobs:
 
       # beforePack 在这里下载 ffmpeg、分析模型、Steam Audio 并编译 MNN；afterPack 再核对它们都在包里。
       - name: Package Electron app (NSIS installer)
-        shell: bash
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
-        run: npx electron-builder --win nsis --publish never --config.nsis.artifactName=Folia-Setup-0.8.2.1.${ext}
+        # PowerShell 里用单引号，${ext} 才不会被当成变量展开；也别用 shell: bash，那会把 tar 换成 Git 的 GNU tar。
+        run: npx electron-builder --win nsis --publish never --config.nsis.artifactName='Folia-Setup-0.8.2.1.${ext}'
 
       - name: Report what was built
-        shell: bash
         run: |
-          ls -lh release | sed -n '1,20p' >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "安装包：\`release/Folia-Setup-0.8.2.1.exe\`" >> "$GITHUB_STEP_SUMMARY"
+          Get-ChildItem release | Select-Object Name, Length | Format-Table -AutoSize | Out-String | Add-Content $env:GITHUB_STEP_SUMMARY
+          Add-Content $env:GITHUB_STEP_SUMMARY "安装包：release/Folia-Setup-0.8.2.1.exe"
 
       - name: Upload the installer
         uses: actions/upload-artifact@v6

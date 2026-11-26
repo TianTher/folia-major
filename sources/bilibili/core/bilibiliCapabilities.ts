@@ -202,7 +202,7 @@ export const createCapabilities = (env: BilibiliCoreEnv, request: BilibiliReques
                 case 0:
                     pendingSignIns.delete(key);
                     // 换一个账号登录：上一个账号读来的收藏夹列表不能拿来回答这一个。勾选留着——同一个账号
-                    // 重新登录（会话过期最常见）不该让人重勾 86 个；真换了账号，下一次读账号会发现并清掉。
+                    // 重新登录（会话过期最常见）不该让人把收藏夹重勾一遍；真换了账号，下一次读账号会发现并清掉。
                     folderRowsCache = null;
                     return { state: 'confirmed' };
                 case 86090: return { state: 'scanned' };

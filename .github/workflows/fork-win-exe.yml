@@ -1,0 +1,99 @@
+name: Fork Windows EXE
+
+# fork 自用：在 GitHub 的 windows-latest 上打一个 Windows 桌面版（NSIS 安装包 + 免安装目录）。
+# 步骤与上游 electron-release.yml 的 Windows 那段一致：装依赖 → Rust 工具链 → 壁纸助手（Rust）
+# → 前端构建 → MNN 运行时（beforePack 用 cmake + MSVC 编，缓存在 Actions 里）→ 内置音源
+# → electron-builder 打包。只上传产物，不发布、不签名（CSC_IDENTITY_AUTO_DISCOVERY=false）。
+# 只存在于 ci/fork-build 分支，对上游提 PR 时不带这个文件。
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - ci/win-exe
+
+permissions:
+  contents: read
+
+jobs:
+  build-win:
+    name: Build Windows app
+    runs-on: windows-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Check out Git repository
+        uses: actions/checkout@v6
+
+      - name: Install Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+
+      - name: Cache wallpaper-helper Cargo build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: packaging/windows/wallpaper-helper
+
+      - name: Build wallpaper helper
+        run: node packaging/windows/build-wallpaper-helper.mjs
+
+      - name: Build web app for Electron
+        env:
+          ELECTRON: 'true'
+        run: npm run build
+
+      # beforePack 会用 cmake + MSVC 现编 MNN 运行时（几分钟），缓存源码与产物。
+      - name: Cache MNN runtime build
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/.mnn-src
+            build/mnn
+          key: mnn-${{ runner.os }}-${{ hashFiles('build/buildMnnRuntime.mjs', 'native/folia-mnn/**') }}
+
+      - name: Build built-in source mods
+        run: npm run sources:build
+
+      # beforePack 在这里下载 ffmpeg、分析模型、Steam Audio 并编译 MNN；afterPack 再核对它们都在包里。
+      - name: Package Electron app (NSIS installer)
+        shell: bash
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+        run: npx electron-builder --win nsis --publish never --config.nsis.artifactName=Folia-Setup-0.8.2.1.${ext}
+
+      - name: Report what was built
+        shell: bash
+        run: |
+          ls -lh release | sed -n '1,20p' >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "安装包：\`release/Folia-Setup-0.8.2.1.exe\`" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the installer
+        uses: actions/upload-artifact@v6
+        with:
+          name: folia-win-exe
+          path: |
+            release/*.exe
+            release/*.blockmap
+            release/*.yml
+            !release/builder-debug.yml
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload the unpacked app (no installer needed)
+        uses: actions/upload-artifact@v6
+        with:
+          name: folia-win-unpacked
+          path: release/win-unpacked/**
+          if-no-files-found: error
+          retention-days: 7

@@ -131,15 +131,19 @@ export const declaredParticipants = (feature: CrossSourceFeature): CrossSourceDe
     }
     // The federated search lists a platform the listener can play from without signing in first: one with no
     // account at all, one whose search needs none (its `search@1.access`), or one signed in. A platform
-    // declares it only while it is registered.
-    return listOnlineMusicProviders().map(provider => {
-        const declared = getSourceDeclaration(provider.id)?.search?.access;
-        return {
-            sourceId: provider.id,
-            access: declared ?? (provider.capabilities.auth ? 'account' : 'anonymous'),
-            checksAvailability: true,
-        };
-    });
+    // declares it only while it is registered — and only if it can search at all: a source that just looks a song
+    // up by id (a video platform whose playlists are its whole catalog, say) is not a search source, and listing it
+    // would offer an entry that never has results.
+    return listOnlineMusicProviders()
+        .filter(provider => provider.capabilities.search)
+        .map(provider => {
+            const declared = getSourceDeclaration(provider.id)?.search?.access;
+            return {
+                sourceId: provider.id,
+                access: declared ?? (provider.capabilities.auth ? 'account' : 'anonymous'),
+                checksAvailability: true,
+            };
+        });
 };
 
 /** The state of `sourceId` now. Signed in means a confirmed sign-in for the search, an account shown for the rest. */

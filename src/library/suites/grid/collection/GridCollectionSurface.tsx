@@ -4,7 +4,7 @@ import { useGridMorphPlan } from '../transitions/useGridMorphPlan';
 import { useGridStayPlayback } from '../shared/useGridStayPlayback';
 import { useNavigationPageKey } from '../../../../components/app/playing-song-locator/useNavigationPageKey';
 import GridView from './GridView';
-import { queueOfGroup } from '../../../app/createLibraryPlaybackPort';
+import { expandGroupInQueue, partsOfGroup } from '../../../app/createLibraryPlaybackPort';
 import { getSongGroup } from '../../../../services/onlineMusic/songMetadata';
 
 // src/library/suites/grid/collection/GridCollectionSurface.tsx
@@ -46,21 +46,21 @@ const GridCollectionSurface: React.FC<LibraryCollectionSurfaceProps> = ({
             mode="tracks"
             onBack={onBack}
             onDone={onDone}
-            // 卡片上的播放键：多 P 的那一行播第一 P 时，其余各 P 一起进队列（播放列表里就能看到整条视频的分 P）。
-            onSelectTrack={(track) => {
+            // 卡片上的播放键：多 P 的那一行在队列里展开成它的各 P（整个收藏夹照旧都在队列里），并播第一 P。
+            onSelectTrack={(track, queue) => {
                 if (!getSongGroup(track)) {
-                    stayPlayback.selectTrack(track, [track]);
+                    stayPlayback.selectTrack(track, queue);
                     return;
                 }
-                void queueOfGroup(track).then((parts) => {
+                void partsOfGroup(track).then((parts) => {
                     if (!parts) {
-                        stayPlayback.selectTrack(track, [track]);
+                        stayPlayback.selectTrack(track, queue);
                         return;
                     }
-                    playback.playTrack(parts[0], parts);
+                    stayPlayback.selectTrack(parts[0], expandGroupInQueue(queue, track, parts));
                 });
             }}
-            // 一组歌（B 站一个视频的各 P）里点了一首：播它，后面的同组歌曲跟着进队列，于是下一曲就是下一 P。
+            // 一组歌（B 站一个视频的各 P）里点了一首：队列按同一份收藏夹展开，从它开始播。
             onPlaySongGroup={(track, queue) => playback.playTrack(track, queue)}
             trackPlaybackMark={stayPlayback.markFor}
             onAddTrackToQueue={playback.enqueueTrack}

@@ -28,37 +28,67 @@ type PlaybackSurface = Pick<
 const GROUP_QUEUE_LIMIT = 200;
 
 /**
- * 一首属于某个"行"的歌（B 站一个视频的各 P）：读回整组，返回从它开始的那一段；不是这种歌、或者读不到，就是 null。
- * 于是点播放键播第一 P 时，其余各 P 一起进队列——右下角的播放列表里就能看到整条视频的分 P。
+ * 一首属于某个"行"的歌（B 站一个视频的各 P）的整组歌曲；不是这种歌、或者读不到，就是 null。
+ * 读它是为了让队列里那一行变成它的各 P：点播放键播第一 P 时，右下角播放列表里就能看到整条视频的分 P。
  */
-export const queueOfGroup = async (track: SongResult): Promise<SongResult[] | null> => {
+export const partsOfGroup = async (track: SongResult): Promise<SongResult[] | null> => {
     const group = getSongGroup(track);
     const ref = getPlaybackSourceRef(track);
     if (!group || !group.total || group.total <= 1 || ref.kind !== 'online') return null;
     try {
         const answer = await omni.getGroupTracks(ref.providerId, group.id, { limit: GROUP_QUEUE_LIMIT, offset: 0 });
         const parts = answer.items ?? [];
-        if (!parts.length) return null;
-        const at = parts.findIndex(part => getPlaybackSongKey(part) === getPlaybackSongKey(track));
-        return parts.slice(at > 0 ? at : 0);
+        return parts.length ? parts : null;
     } catch {
         return null;
     }
 };
 
+/**
+ * 把队列里的那一行换成它的各 P（其余的歌顺序不变）。队列里没有这一行（例如从搜索里直接播某一 P）时，
+ * 队列就是这一组。
+ */
+export const expandGroupInQueue = (
+    queue: SongResult[] | undefined,
+    track: SongResult,
+    parts: SongResult[],
+): SongResult[] => {
+    const base = queue ?? [];
+    const groupId = getSongGroup(track)?.id;
+    if (!groupId) return parts;
+    const inGroup = base.filter(item => getSongGroup(item)?.id === groupId);
+    // 已经展开过（队列里已有这一组的两首以上）：原样交回去，免得同一个 P 排进去两次。
+    if (inGroup.length > 1) return base;
+    const rowAt = base.findIndex(item => getSongGroup(item)?.id === groupId);
+    return rowAt >= 0 ? [...base.slice(0, rowAt), ...parts, ...base.slice(rowAt + 1)] : parts;
+};
+
+/** 队列里这一组是不是已经展开过（含两首以上）：是就不必再读一次、也不必再换一遍。 */
+const alreadyExpanded = (track: SongResult, queue: SongResult[] | undefined): boolean => {
+    const groupId = getSongGroup(track)?.id;
+    if (!groupId) return false;
+    return (queue ?? []).filter(item => getSongGroup(item)?.id === groupId).length > 1;
+};
+
+/** 展开之后从 `track` 那一首（或这一组第一首）开播。 */
+const playExpanded = (surface: PlaybackSurface, track: SongResult, queue: SongResult[] | undefined, parts: SongResult[]): void => {
+    const expanded = expandGroupInQueue(queue, track, parts);
+    const startAt = expanded.findIndex(item => getPlaybackSongKey(item) === getPlaybackSongKey(track));
+    surface.onPlaySong(startAt >= 0 ? expanded[startAt] : parts[0], expanded);
+};
+
 export const createLibraryPlaybackPort = (surface: PlaybackSurface): LibraryPlaybackPort => ({
-    // 队列里已经带着这一组的其余歌曲（分 P 面板点的那一下）就不再读一次。
     playTrack: (track, queue) => {
-        if ((queue?.length ?? 0) > 1 || !getSongGroup(track)) {
+        if (!getSongGroup(track) || alreadyExpanded(track, queue)) {
             surface.onPlaySong(track, queue);
             return;
         }
-        void queueOfGroup(track).then((parts) => {
+        void partsOfGroup(track).then((parts) => {
             if (!parts) {
                 surface.onPlaySong(track, queue);
                 return;
             }
-            surface.onPlaySong(parts[0], parts);
+            playExpanded(surface, track, queue, parts);
         });
     },
     playAll: (tracks, options) => surface.onPlayAll?.(tracks, undefined, options),

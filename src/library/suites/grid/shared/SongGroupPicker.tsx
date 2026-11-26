@@ -15,8 +15,6 @@ import { getPlaybackSourceRef } from '../../../../utils/appPlaybackGuards';
 /** 一页几个：两列 × 五行。 */
 const PAGE_SIZE = 10;
 const COLUMNS = 2;
-/** 点一首时要拿它后面的全部同组歌曲进队列：一次取这么多够一首歌的分 P 用了。 */
-const ALL_PARTS_LIMIT = 200;
 
 const formatDuration = (ms: number): string => {
     if (!Number.isFinite(ms) || ms <= 0) return '';
@@ -29,8 +27,8 @@ export interface SongGroupPickerProps {
     /** Where the group lives: the provider id of the song that opened it. */
     providerId: OmniProviderId;
     onClose: () => void;
-    /** Plays `track`, with the rest of the group after it as the queue. */
-    onPlay: (track: SongResult, queue: SongResult[]) => void;
+    /** 播这一首：队列怎么展开由播放端口做（整个收藏夹仍在队列里，只把这一行换成它的各 P）。 */
+    onPlay: (track: SongResult) => void;
 }
 
 export const SongGroupPicker: React.FC<SongGroupPickerProps> = ({ group, providerId, onClose, onPlay }) => {
@@ -63,19 +61,8 @@ export const SongGroupPicker: React.FC<SongGroupPickerProps> = ({ group, provide
 
     const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-    const pick = async (index: number) => {
-        try {
-            // 整组一次读回来：点第 n 首时，队列里要从它排到这一组最后一首。
-            const all = await omni.getGroupTracks(providerId, group.id, { limit: ALL_PARTS_LIMIT, offset: 0 });
-            const parts = all.items ?? [];
-            const chosen = parts[index] ?? parts[0];
-            if (!chosen) return;
-            const at = parts.indexOf(chosen);
-            onPlay(chosen, parts.slice(Math.max(0, at)));
-        } catch {
-            // 读不到整组就不播：宁可不放，也不要放错一首却把别的视频排进队列。
-            setFailed(true);
-        }
+    const pick = (track: SongResult) => {
+        onPlay(track);
     };
 
     return (
@@ -119,7 +106,7 @@ export const SongGroupPicker: React.FC<SongGroupPickerProps> = ({ group, provide
                                 <button
                                     key={track.id}
                                     type="button"
-                                    onClick={() => { void pick(page * PAGE_SIZE + index); }}
+                                    onClick={() => { pick(track); }}
                                     className="flex min-w-0 items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs hover:bg-white/10"
                                 >
                                     <span className="w-6 shrink-0 text-right tabular-nums opacity-50">{page * PAGE_SIZE + index + 1}</span>

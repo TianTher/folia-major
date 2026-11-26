@@ -2380,9 +2380,10 @@ export const GridView: React.FC<GridViewProps> = ({
                     group={songGroupPicker.group}
                     providerId={songGroupPicker.providerId}
                     onClose={() => setSongGroupPicker(null)}
-                    onPlay={(track, queue) => {
+                    onPlay={(track) => {
                         setSongGroupPicker(null);
-                        onPlaySongGroup?.(track, queue);
+                        // 队列是这一页的曲目：多 P 那一行在里面展开成各 P，由播放端口做。
+                        onPlaySongGroup?.(track, playableTracks);
                     }}
                 />
             )}

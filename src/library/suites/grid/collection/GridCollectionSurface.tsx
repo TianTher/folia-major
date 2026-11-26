@@ -4,6 +4,8 @@ import { useGridMorphPlan } from '../transitions/useGridMorphPlan';
 import { useGridStayPlayback } from '../shared/useGridStayPlayback';
 import { useNavigationPageKey } from '../../../../components/app/playing-song-locator/useNavigationPageKey';
 import GridView from './GridView';
+import { queueOfGroup } from '../../../app/createLibraryPlaybackPort';
+import { getSongGroup } from '../../../../services/onlineMusic/songMetadata';
 
 // src/library/suites/grid/collection/GridCollectionSurface.tsx
 // 网格的集合 surface：把宿主交给任何 suite 的同一份输入（core/suite/suite.contract 的 LibraryCollectionSurfaceProps）
@@ -44,7 +46,20 @@ const GridCollectionSurface: React.FC<LibraryCollectionSurfaceProps> = ({
             mode="tracks"
             onBack={onBack}
             onDone={onDone}
-            onSelectTrack={stayPlayback.selectTrack}
+            // 卡片上的播放键：多 P 的那一行播第一 P 时，其余各 P 一起进队列（播放列表里就能看到整条视频的分 P）。
+            onSelectTrack={(track) => {
+                if (!getSongGroup(track)) {
+                    stayPlayback.selectTrack(track, [track]);
+                    return;
+                }
+                void queueOfGroup(track).then((parts) => {
+                    if (!parts) {
+                        stayPlayback.selectTrack(track, [track]);
+                        return;
+                    }
+                    playback.playTrack(parts[0], parts);
+                });
+            }}
             // 一组歌（B 站一个视频的各 P）里点了一首：播它，后面的同组歌曲跟着进队列，于是下一曲就是下一 P。
             onPlaySongGroup={(track, queue) => playback.playTrack(track, queue)}
             trackPlaybackMark={stayPlayback.markFor}

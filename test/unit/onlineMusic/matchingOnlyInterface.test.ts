@@ -227,7 +227,7 @@ describe.each([
 });
 
 describe('a source used only for matching, beyond the lists (review of the first pass)', () => {
-    const ALL = ['netease', 'kugou', 'qq', 'bodian', 'ytm', 'spotify', 'qishui', 'appleMusic', 'fnmusic', 'lxmusic'];
+    const ALL = ['netease', 'kugou', 'qq', 'bodian', 'ytm', 'spotify', 'qishui', 'appleMusic', 'fnmusic', 'bilibili', 'lxmusic'];
 
     it('is not in effect even when no other source is shown: nothing is', () => {
         useOnlineProviderAccountStore.getState().setActiveProviderId(SAMPLE);

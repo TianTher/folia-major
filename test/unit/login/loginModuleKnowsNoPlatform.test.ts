@@ -47,6 +47,8 @@ describe('what each platform declares for the sign-in window', () => {
             qishui: { letter: '汽', color: '#19a58c' },
             appleMusic: { letter: 'A', color: '#fa243c' },
             lxmusic: { letter: '洛', color: '#2f9e6e' },
+            // 自己的一套登录窗口（扫码，登录后是收藏夹清单）：B 站的名字首字母与它的品牌色。
+            bilibili: { letter: 'B', color: '#00a1d6' },
         });
     });
 
@@ -70,6 +72,7 @@ describe('what each platform declares for the sign-in window', () => {
             spotify: { title: 'folium-mod/spotify:login.title', note: 'folium-mod/spotify:login.note' },
             qishui: { title: 'folium-mod/qishui:login.title', note: 'folium-mod/qishui:login.note' },
             appleMusic: { title: 'folium-mod/apple-music:login.title', note: 'folium-mod/apple-music:login.note' },
+            bilibili: { title: 'folium-mod/bilibili:login.title', note: 'folium-mod/bilibili:login.hint' },
         });
     });
 

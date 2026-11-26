@@ -668,6 +668,8 @@ describe('command palette registry', () => {
             'search-current', 'search-local', 'search-navidrome',
             'search-netease', 'search-kugou', 'search-qq', 'search-bodian', 'search-ytm',
             'search-spotify', 'search-qishui', 'search-appleMusic', 'search-fnmusic', 'search-lxmusic',
+            // 音源模组注册在最后（与 providerRegistry 的顺序一致）。
+            'search-bilibili',
         ]);
         const netease = COMMAND_PALETTE_COMMANDS.find(command => command.id === 'search-netease')!;
         expect(netease.textSource).toBe('runtime');

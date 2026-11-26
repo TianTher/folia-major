@@ -102,7 +102,8 @@ describe('crossSource · what the sources declare today (the S1 seam)', () => {
         expect(declaredParticipants('lyrics').find(entry => entry.sourceId === 'amll')?.hostOwned).toBe(true);
         expect(declaredParticipants('metadata').map(entry => entry.sourceId)).toEqual(['netease', 'qq', 'kugou']);
         // Folium 2.0: Bodian, a source mod now, keeps its place from before it moved (the registry order).
-        expect(declaredParticipants('search').map(entry => entry.sourceId)).toEqual([...NINE, 'lxmusic']);
+        // The bilibili source mod registers behind the built-in platforms, so it comes last in the search order.
+        expect(declaredParticipants('search').map(entry => entry.sourceId)).toEqual([...NINE, 'lxmusic', 'bilibili']);
     });
 
     it('with all nine there and nobody signed in: the lyric sources that need an account are skipped, the rest ready', () => {

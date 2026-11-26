@@ -48,7 +48,12 @@ const AUTH_MEMBERS: Record<string, string[]> = {
         'cancelLogin', 'checkLogin', 'describeLoginFailure', 'getLoginStatus', 'getLoginTexts', 'logout', 'openLoginPage',
         'opensLoginPageItself', 'showsKeptAccountAtStart', 'signInRanOut', 'startLogin',
     ],
-    // 表单式登录：不扫码不开浏览器，登录窗口按 getLoginForm 声明渲染账号密码表单。
+    // A source mod: QR sign-in, and after it the folder checklist (`getSetup` / `runSetupAction`) the listener
+    // picks what syncs from. No `describeLoginFailure`, no TTL of its own, nothing kept from an older build.
+    bilibili: [
+        'cancelLogin', 'checkAfterLogin', 'checkLogin', 'createQr', 'getLoginStatus', 'getLoginTexts', 'getSetup', 'logout',
+        'runSetupAction', 'startLogin',
+    ],    // 表单式登录：不扫码不开浏览器，登录窗口按 getLoginForm 声明渲染账号密码表单。
     fnmusic: [
         'checkLogin', 'describeLoginFailure', 'getLoginForm', 'getLoginStatus', 'getLoginTexts', 'logout', 'startLogin', 'submitLoginForm',
     ],

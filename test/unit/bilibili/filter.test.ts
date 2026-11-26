@@ -113,7 +113,7 @@ describe('signing in again', () => {
         const { capabilities, saved } = withAccount();
         await capabilities.auth.getLoginStatus!();
         await capabilities.auth.getLoginStatus!();
-        // 会话过期后重新登录同一个人：不该把 几十个收藏夹的勾选清掉。
+        // 会话过期后重新登录同一个人：不该把几十个收藏夹的勾选清掉。
         expect(saved).toEqual([]);
     });
 
